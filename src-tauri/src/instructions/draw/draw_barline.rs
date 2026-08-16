@@ -8,6 +8,9 @@ use crate::ui::sequencer::Selection;
 use crate::utils::UniqueId;
 use skia_safe::Color;
 
+const MIN_BARLINE_HIT_WIDTH: f32 = 1.0;
+const SINGLE_BARLINE_HIT_WIDTH: f32 = 1.0;
+
 #[derive(Clone, Copy)]
 pub struct BarlineInteraction {
     pub flow_id: UniqueId,
@@ -380,15 +383,23 @@ pub fn draw_barline(
         let last = &vertical_spacing.instruments[&last_span.stop];
         let bottom = origin.y + last.y + last.height + tweak_for_stave_line_width;
         let metrics = draw_type.metrics();
+        let (hit_x, hit_width) = if matches!(draw_type, BarlineDrawType::Single) {
+            (
+                origin.x - (SINGLE_BARLINE_HIT_WIDTH / 2.0),
+                SINGLE_BARLINE_HIT_WIDTH,
+            )
+        } else {
+            (origin.x, metrics.width.max(MIN_BARLINE_HIT_WIDTH))
+        };
 
         renderer.hit_targets.push(HitTarget {
             entry: Selection::Barline {
                 flow_id: interaction.flow_id,
                 tick: interaction.tick,
             },
-            x: origin.x,
+            x: hit_x,
             y: top,
-            width: metrics.width.max(1.2),
+            width: hit_width,
             height: bottom - top,
             popover_x: origin.x,
             popover_y: top - 3.0,
@@ -398,7 +409,7 @@ pub fn draw_barline(
 
 #[cfg(test)]
 mod tests {
-    use super::{draw_barline, BarlineInteraction};
+    use super::{draw_barline, BarlineInteraction, SINGLE_BARLINE_HIT_WIDTH};
     use crate::instructions::draw::test_helpers::{make_barline_spans, make_vertical_spacing};
     use crate::renderer::{test_helpers::make_test_renderer, DrawInstruction};
     use crate::score::components::measurements::Point;
@@ -593,7 +604,8 @@ mod tests {
                 tick: 128,
             }
         );
-        assert!(r.hit_targets[0].width >= 1.2);
+        assert_eq!(r.hit_targets[0].x, -1.0);
+        assert_eq!(r.hit_targets[0].width, SINGLE_BARLINE_HIT_WIDTH);
         assert!(r.hit_targets[0].height > 0.0);
     }
 
