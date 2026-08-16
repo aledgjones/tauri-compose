@@ -686,12 +686,8 @@ fn build_flow_render_segment(
                     ),
                 )
             });
-        page_padding.top += bar_strip_top_reserve(
-            stave_center,
-            stave_height,
-            highest_tone_offset,
-            converter,
-        );
+        page_padding.top +=
+            bar_strip_top_reserve(stave_center, stave_height, highest_tone_offset, converter);
     }
 
     let setup_start = Instant::now();
