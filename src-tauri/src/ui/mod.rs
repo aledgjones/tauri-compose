@@ -206,6 +206,33 @@ mod tests {
     }
 
     #[test]
+    fn resolves_barline_coordinates_from_its_flow_and_tick() {
+        let selection = Selection::Barline {
+            flow_id: 20,
+            tick: 128,
+        };
+        let ui_renderer = renderer::Renderer {
+            zoom: 200,
+            pan_x: 30.0,
+            pan_y: -10.0,
+            debug: false,
+        };
+        let renderer = make_renderer_context(vec![HitTarget {
+            entry: selection.clone(),
+            x: 25.0,
+            y: 12.0,
+            width: 1.2,
+            height: 8.0,
+            popover_x: 25.5,
+            popover_y: 10.25,
+        }]);
+
+        let coordinates = resolve_selection_coordinates(Some(&selection), &ui_renderer, &renderer);
+
+        assert_eq!(coordinates, Some((81.0, 10.5)));
+    }
+
+    #[test]
     fn resolves_boundary_adjacent_selection_against_the_exact_matching_hit_target() {
         let selected_target = Selection::Rest {
             flow_id: 20,

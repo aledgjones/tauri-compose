@@ -23,7 +23,7 @@ use crate::AppContext;
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_articulations::draw_articulations;
 use draw::draw_bar_strip::{bar_strip_top_reserve, draw_bar_strip};
-use draw::draw_barline::draw_barline;
+use draw::draw_barline::{draw_barline, BarlineInteraction};
 use draw::draw_beam::draw_beam;
 use draw::draw_braces::draw_braces;
 use draw::draw_brackets::draw_brackets;
@@ -793,6 +793,11 @@ fn build_flow_render_segment(
                 &BarlineDrawType::StartRepeat,
                 &vertical_spacing,
                 &vertical_spans,
+                Some(BarlineInteraction {
+                    flow_id: flow.id,
+                    tick,
+                }),
+                state.ui.sequencer.selection.as_ref(),
                 &mut segment_renderer,
             );
         }
@@ -807,6 +812,11 @@ fn build_flow_render_segment(
                 &BarlineDrawType::EndRepeat,
                 &vertical_spacing,
                 &vertical_spans,
+                Some(BarlineInteraction {
+                    flow_id: flow.id,
+                    tick,
+                }),
+                state.ui.sequencer.selection.as_ref(),
                 &mut segment_renderer,
             );
         }
@@ -821,6 +831,11 @@ fn build_flow_render_segment(
                 &draw_type,
                 &vertical_spacing,
                 &vertical_spans,
+                Some(BarlineInteraction {
+                    flow_id: flow.id,
+                    tick,
+                }),
+                state.ui.sequencer.selection.as_ref(),
                 &mut segment_renderer,
             );
         }
@@ -836,6 +851,8 @@ fn build_flow_render_segment(
         &BarlineDrawType::Final,
         &vertical_spacing,
         &vertical_spans,
+        None,
+        state.ui.sequencer.selection.as_ref(),
         &mut segment_renderer,
     );
     timings.barlines = barlines_start.elapsed();

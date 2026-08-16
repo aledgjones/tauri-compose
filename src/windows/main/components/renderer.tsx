@@ -118,6 +118,13 @@ export const Renderer: FC<Props> = ({ className }) => {
             );
             return;
           }
+          case "Barline": {
+            await actions.ui.sequencer.selectBarline(
+              hitResult.flow_id,
+              hitResult.tick,
+            );
+            return;
+          }
           case "Tone": {
             await actions.ui.sequencer.selectTone(
               hitResult.tone_id,

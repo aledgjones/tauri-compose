@@ -55,6 +55,7 @@ import {
   parsePlayingTechniquePopover,
   parseTimeSignaturePopover,
 } from "../services/popovers";
+import { actions } from "../services/actions";
 
 // ---------------------------------------------------------------------------
 // Fixture — RestSelection so we get tick directly without building a Track
@@ -72,6 +73,18 @@ const stateWithSelection = createAppState({
         instrument_id: 10,
         stave_id: STAVE_ID,
         track_id: 300,
+        tick: TICK,
+      },
+    },
+  } as never,
+});
+
+const stateWithBarlineSelection = createAppState({
+  ui: {
+    sequencer: {
+      selection: {
+        type: "Barline",
+        flow_id: FLOW_ID,
         tick: TICK,
       },
     },
@@ -543,6 +556,55 @@ describe("Popover", () => {
         type: PopoverType.PlayingTechnique,
       });
     });
+  });
+
+  it.each([
+    ["B", PopoverType.Barline],
+    ["K", PopoverType.KeySignature],
+    ["M", PopoverType.TimeSignature],
+    ["T", PopoverType.Tempo],
+  ])(
+    "Shift+%s opens its flow-level popover from a Barline selection",
+    async (key, type) => {
+      renderWithProviders(<Popover popover={null} setPopover={setPopover} />, {
+        appState: stateWithBarlineSelection,
+      });
+
+      fireEvent.keyDown(document, { key, shiftKey: true });
+
+      await waitFor(() => {
+        expect(setPopover).toHaveBeenCalledWith({ x: 100, y: 200, type });
+      });
+    },
+  );
+
+  it.each(["C", "P"])(
+    "Shift+%s does not open a stave-level popover from a Barline selection",
+    async (key) => {
+      renderWithProviders(<Popover popover={null} setPopover={setPopover} />, {
+        appState: stateWithBarlineSelection,
+      });
+
+      fireEvent.keyDown(document, { key, shiftKey: true });
+      await Promise.resolve();
+
+      expect(
+        actions.ui.renderer.getSelectionCoordinates,
+      ).not.toHaveBeenCalled();
+      expect(setPopover).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not open a tuplet popover from a Barline selection", async () => {
+    renderWithProviders(<Popover popover={null} setPopover={setPopover} />, {
+      appState: stateWithBarlineSelection,
+    });
+
+    fireEvent.keyDown(document, { key: ";" });
+    await Promise.resolve();
+
+    expect(actions.ui.renderer.getSelectionCoordinates).not.toHaveBeenCalled();
+    expect(setPopover).not.toHaveBeenCalled();
   });
 
   it("uses canonical player order when a tick-only selection opens the playing-technique popover", async () => {

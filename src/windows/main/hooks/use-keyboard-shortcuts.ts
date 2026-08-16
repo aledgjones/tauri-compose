@@ -182,6 +182,15 @@ export const useKeyboardShortcuts = () => {
       case "InsertBarAfter":
       case "DeleteBar":
         return null;
+      case "Barline": {
+        return {
+          deleteSelection: () =>
+            actions.score.barline.clearAtTick(
+              selection.flow_id,
+              selection.tick,
+            ),
+        };
+      }
       case "Tone": {
         if (!toneSelectionInfo) {
           return null;

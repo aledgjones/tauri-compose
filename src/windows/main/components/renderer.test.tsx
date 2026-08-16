@@ -19,6 +19,7 @@ vi.mock("../../../services/actions", () => ({
       },
       sequencer: {
         selectBar: vi.fn().mockResolvedValue(undefined),
+        selectBarline: vi.fn().mockResolvedValue(undefined),
         selectTone: vi.fn().mockResolvedValue(undefined),
         selectRest: vi.fn().mockResolvedValue(undefined),
         selectTempo: vi.fn().mockResolvedValue(undefined),
@@ -96,6 +97,24 @@ describe("Renderer", () => {
 
     await waitFor(() => {
       expect(actions.ui.sequencer.selectBar).toHaveBeenCalledWith(4, 128);
+    });
+  });
+
+  it("dispatches barline selection with its exact tick", async () => {
+    vi.mocked(hitTest).mockResolvedValueOnce({
+      type: "Barline",
+      flow_id: 4,
+      tick: 128,
+    });
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectBarline).toHaveBeenCalledWith(4, 128);
     });
   });
 

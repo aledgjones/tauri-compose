@@ -727,6 +727,17 @@ describe("actions.ui", () => {
       );
     });
 
+    it("selectBarline calls invoke with the barline selection payload", async () => {
+      await actions.ui.sequencer.selectBarline(4, 128);
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequencer_selection_set_barline",
+        {
+          flow_id: 4,
+          tick: 128,
+        },
+      );
+    });
+
     it("selectTempo calls invoke with the tempo selection payload", async () => {
       await actions.ui.sequencer.selectTempo(8, 4, 64);
       expect(mockInvoke).toHaveBeenCalledWith(

@@ -654,6 +654,12 @@ type BarSelection = {
   tick: Tick;
 };
 
+type BarlineSelection = {
+  type: "Barline";
+  flow_id: UniqueId;
+  tick: Tick;
+};
+
 type InsertBarAfterHit = {
   type: "InsertBarAfter";
   flow_id: UniqueId;
@@ -668,6 +674,7 @@ type DeleteBarHit = {
 
 export type Selection =
   | BarSelection
+  | BarlineSelection
   | InsertBarAfterHit
   | DeleteBarHit
   | ToneSelection

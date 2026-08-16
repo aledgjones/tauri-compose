@@ -507,6 +507,9 @@ export const actions = {
       selectBar: (flow_id: number, tick: number) => {
         return invoke("ui_sequencer_selection_set_bar", { flow_id, tick });
       },
+      selectBarline: (flow_id: number, tick: number) => {
+        return invoke("ui_sequencer_selection_set_barline", { flow_id, tick });
+      },
       selectTone: (
         tone_id: number,
         track_id: number,

@@ -47,17 +47,7 @@ export const useSelectedToneInfo = () => {
       return null;
     }
 
-    if (
-      selection.type === "Bar" ||
-      selection.type === "InsertBarAfter" ||
-      selection.type === "DeleteBar" ||
-      selection.type === "Tempo" ||
-      selection.type === "TimeSignature" ||
-      selection.type === "KeySignature" ||
-      selection.type === "Clef" ||
-      selection.type === "PlayingTechnique" ||
-      selection.type === "Tuplet"
-    ) {
+    if (selection.type !== "Tone" && selection.type !== "Rest") {
       return null;
     }
 

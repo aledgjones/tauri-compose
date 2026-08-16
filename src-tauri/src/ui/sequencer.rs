@@ -18,6 +18,10 @@ pub enum Selection {
         flow_id: UniqueId,
         tick: u64,
     },
+    Barline {
+        flow_id: UniqueId,
+        tick: u64,
+    },
     InsertBarAfter {
         flow_id: UniqueId,
         tick: u64,
@@ -83,6 +87,7 @@ impl Selection {
     fn flow_id(&self) -> UniqueId {
         match self {
             Selection::Bar { flow_id, .. }
+            | Selection::Barline { flow_id, .. }
             | Selection::InsertBarAfter { flow_id, .. }
             | Selection::DeleteBar { flow_id, .. }
             | Selection::Tone { flow_id, .. }
@@ -549,6 +554,32 @@ pub fn ui_sequencer_selection_set_bar(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequencer_selection_set_barline(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
+    flow_id: UniqueId,
+    tick: u64,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    let recalculation_request = FlowRenderRecalculationRequest::for_local_update(
+        state
+            .ui
+            .sequencer
+            .selection
+            .as_ref()
+            .map(Selection::flow_id),
+        Some(flow_id),
+    );
+
+    apply_selection(&mut state.ui, Selection::Barline { flow_id, tick });
+    sync_transport_to_app_state(transport_shared.inner(), &state, 0);
+    state.emit_general_state(&app, &mut renderer, recalculation_request);
+}
+
+#[tauri::command(rename_all = "snake_case")]
 pub fn ui_sequencer_selection_clear(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
@@ -616,6 +647,21 @@ mod tests {
         assert_eq!(json["flow_id"], 11);
         assert_eq!(json["tempo_id"], 12);
         assert_eq!(json["tick"], 96);
+    }
+
+    #[test]
+    fn barline_selection_serializes_with_flow_and_tick() {
+        let selection = Selection::Barline {
+            flow_id: 11,
+            tick: 96,
+        };
+
+        let json = serde_json::to_value(selection).unwrap();
+
+        assert_eq!(json["type"], "Barline");
+        assert_eq!(json["flow_id"], 11);
+        assert_eq!(json["tick"], 96);
+        assert!(json.get("barline_id").is_none());
     }
 
     #[test]

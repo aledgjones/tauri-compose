@@ -91,6 +91,7 @@ const getStaveIdFromSelection = (state: AppState) => {
   if (
     !selection ||
     selection.type === "Bar" ||
+    selection.type === "Barline" ||
     selection.type === "InsertBarAfter" ||
     selection.type === "DeleteBar" ||
     selection.type === "Tempo" ||
@@ -145,6 +146,7 @@ const getTrackIdFromSelection = (state: AppState) => {
   if (
     !selection ||
     selection.type === "Bar" ||
+    selection.type === "Barline" ||
     selection.type === "InsertBarAfter" ||
     selection.type === "DeleteBar" ||
     selection.type === "Tempo" ||
@@ -165,6 +167,7 @@ const getInstrumentIdFromSelection = (state: AppState) => {
   if (
     !selection ||
     selection.type === "Bar" ||
+    selection.type === "Barline" ||
     selection.type === "InsertBarAfter" ||
     selection.type === "DeleteBar" ||
     selection.type === "Tempo" ||
@@ -183,6 +186,19 @@ const canOpenTupletPopover = (state: AppState) => {
   const selection = state.ui.sequencer.selection;
 
   return selection?.type === "Tone" || selection?.type === "Rest";
+};
+
+const canOpenPopoverAtSelection = (state: AppState, type: PopoverType) => {
+  if (state.ui.sequencer.selection?.type !== "Barline") {
+    return true;
+  }
+
+  return (
+    type === PopoverType.Barline ||
+    type === PopoverType.KeySignature ||
+    type === PopoverType.TimeSignature ||
+    type === PopoverType.Tempo
+  );
 };
 
 const isEditableTarget = (target: EventTarget | null) => {
@@ -274,6 +290,10 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
 
   const openPopoverAtSelection = useCallback(
     async (type: PopoverType) => {
+      if (!canOpenPopoverAtSelection(state, type)) {
+        return;
+      }
+
       const coords = await actions.ui.renderer.getSelectionCoordinates();
       if (!coords) {
         return;
@@ -282,7 +302,7 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
       const [x, y] = coords;
       setPopover({ x, y, type });
     },
-    [setPopover],
+    [setPopover, state],
   );
 
   useEffect(() => {

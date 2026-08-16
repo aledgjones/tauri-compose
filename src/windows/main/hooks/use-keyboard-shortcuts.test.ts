@@ -23,6 +23,9 @@ vi.mock("../../../services/actions", () => ({
       flow: {
         deleteBar: vi.fn().mockResolvedValue(128),
       },
+      barline: {
+        clearAtTick: vi.fn().mockResolvedValue(undefined),
+      },
       clef: {
         clear: vi.fn().mockResolvedValue(undefined),
       },
@@ -1081,6 +1084,33 @@ describe("useKeyboardShortcuts", () => {
 
     expect(actions.score.flow.deleteBar).toHaveBeenCalledWith(FLOW_ID, 256);
     expect(actions.ui.sequencer.selectBar).toHaveBeenCalledWith(FLOW_ID, 128);
+  });
+
+  it("clears a selected barline on Delete", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Barline",
+            flow_id: FLOW_ID,
+            tick: 128,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    });
+
+    expect(actions.score.barline.clearAtTick).toHaveBeenCalledWith(
+      FLOW_ID,
+      128,
+    );
   });
 
   it("deletes selected tempo and clears selection", async () => {
