@@ -3,7 +3,9 @@ use super::{
     PluginEditorHostAttemptError, PluginEditorHostValidationPhase, PluginHostAttachOutcome,
     SlotRuntimePluginStateCapture,
 };
-use crate::playback::engine::{LiveRenderEvent, LiveRenderEventKind};
+use crate::playback::engine::{
+    set_slot_latency, set_slot_tail, LiveRenderEvent, LiveRenderEventKind,
+};
 use crate::playback::plugin_inventory::vst3_bundle_binary_path;
 use crate::playback::runtime_activation::ActivatedSlotTarget;
 use crate::score::playback::PlaybackSlotPluginState;
@@ -23,11 +25,13 @@ use objc2_app_kit::{
     NSWindowStyleMask,
 };
 use objc2_foundation::{NSNotification, NSPoint, NSRect, NSSize, NSString};
+use rtrb::{Consumer, Producer, RingBuffer};
 use rustc_hash::FxHashMap;
+use std::cell::UnsafeCell;
 use std::ffi::c_void;
 use std::mem::{zeroed, ManuallyDrop};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, OnceLock};
 use std::time::Instant;
 use tauri::AppHandle;
@@ -38,23 +42,36 @@ use vst3::Steinberg::Vst::{
     IComponentHandler, IComponentHandler2, IComponentHandler2Trait, IComponentHandlerTrait,
     IComponentTrait, IComponent_iid, IConnectionPoint, IConnectionPointTrait, IEditController,
     IEditControllerTrait, IEditController_iid, IEventList, IEventListTrait, IHostApplication,
-    IMessage, ViewType,
+    IMessage, IParamValueQueue, IParamValueQueueTrait, IParameterChanges, IParameterChangesTrait,
+    ParameterInfo, ViewType,
 };
 use vst3::Steinberg::Vst::{
     Event, Event_::EventFlags_ as VstEventFlags, Event_::EventTypes_ as VstEventTypes,
-    NoteOffEvent, NoteOnEvent, ProcessData, ProcessSetup,
+    NoteOffEvent, NoteOnEvent, ProcessContext, ProcessData, ProcessSetup,
 };
 use vst3::Steinberg::{
     self, kInvalidArgument, kPlatformTypeNSView, kResultFalse, kResultOk, kResultTrue, tresult,
     FIDString, FUnknown, IBStream, IBStreamTrait, IPlugFrame, IPlugFrameTrait, IPlugView,
-    IPlugViewTrait, IPluginBaseTrait, IPluginFactory, IPluginFactory2, IPluginFactory2Trait,
-    IPluginFactory3, IPluginFactory3Trait, IPluginFactoryTrait, TBool, ViewRect, TUID,
+    IPlugViewContentScaleSupport, IPlugViewContentScaleSupportTrait, IPlugViewTrait,
+    IPluginBaseTrait, IPluginFactory, IPluginFactory2, IPluginFactory2Trait, IPluginFactory3,
+    IPluginFactory3Trait, IPluginFactoryTrait, TBool, ViewRect, TUID,
 };
 use vst3::{Class, ComPtr, ComWrapper};
 
 type GetPluginFactoryFn = unsafe extern "system" fn() -> *mut IPluginFactory;
 type BundleEntryFn = unsafe extern "system" fn(*mut c_void) -> bool;
 type BundleExitFn = unsafe extern "system" fn() -> bool;
+const PARAMETER_EDIT_QUEUE_CAPACITY: usize = 4096;
+const VST_RENDER_EVENT_CAPACITY: usize = 256;
+const MAX_VST3_BLOCK_SIZE: i32 = 16_384;
+static RUNTIME_AUDIO_SAMPLE_RATE: AtomicU32 = AtomicU32::new(48_000);
+static RUNTIME_TEMPO_BITS: AtomicU64 = AtomicU64::new(120.0_f64.to_bits());
+
+#[derive(Clone, Copy, Debug)]
+struct HostParameterEdit {
+    id: Vst::ParamID,
+    value_normalized: Vst::ParamValue,
+}
 
 unsafe extern "C" {
     fn solo_compose_create_steinberg_host_application() -> *mut IHostApplication;
@@ -374,9 +391,31 @@ impl IBStreamTrait for HostMemoryStream {
     }
 }
 
-#[derive(Default)]
+struct HostEventBuffer {
+    events: UnsafeCell<Vec<Event>>,
+}
+
+unsafe impl Send for HostEventBuffer {}
+unsafe impl Sync for HostEventBuffer {}
+
+impl HostEventBuffer {
+    fn new() -> Self {
+        Self {
+            events: UnsafeCell::new(Vec::with_capacity(VST_RENDER_EVENT_CAPACITY)),
+        }
+    }
+
+    unsafe fn events(&self) -> &Vec<Event> {
+        &*self.events.get()
+    }
+
+    unsafe fn events_mut(&self) -> &mut Vec<Event> {
+        &mut *self.events.get()
+    }
+}
+
 struct HostEventList {
-    events: Arc<StdMutex<Vec<Event>>>,
+    events: Arc<HostEventBuffer>,
 }
 
 impl Class for HostEventList {
@@ -385,17 +424,11 @@ impl Class for HostEventList {
 
 impl IEventListTrait for HostEventList {
     unsafe fn getEventCount(&self) -> Steinberg::int32 {
-        self.events
-            .lock()
-            .map(|events| events.len() as Steinberg::int32)
-            .unwrap_or(0)
+        self.events.events().len() as Steinberg::int32
     }
 
     unsafe fn getEvent(&self, index: Steinberg::int32, event: *mut Event) -> tresult {
-        let Ok(events) = self.events.lock() else {
-            return kInvalidArgument;
-        };
-        let Some(stored) = events.get(index as usize) else {
+        let Some(stored) = self.events.events().get(index as usize) else {
             return kResultFalse;
         };
         if event.is_null() {
@@ -409,12 +442,170 @@ impl IEventListTrait for HostEventList {
         if event.is_null() {
             return kInvalidArgument;
         }
-        let Ok(mut events) = self.events.lock() else {
-            return kInvalidArgument;
-        };
-        events.push(*event);
+        self.events.events_mut().push(*event);
         kResultOk
     }
+}
+
+#[derive(Default)]
+struct HostParameterQueueState {
+    active: AtomicBool,
+    sample_offset: AtomicI32,
+    value_bits: AtomicU64,
+}
+
+struct HostParamValueQueue {
+    id: Vst::ParamID,
+    state: Arc<HostParameterQueueState>,
+}
+
+impl Class for HostParamValueQueue {
+    type Interfaces = (IParamValueQueue,);
+}
+
+impl IParamValueQueueTrait for HostParamValueQueue {
+    unsafe fn getParameterId(&self) -> Vst::ParamID {
+        self.id
+    }
+
+    unsafe fn getPointCount(&self) -> i32 {
+        i32::from(self.state.active.load(Ordering::Acquire))
+    }
+
+    unsafe fn getPoint(
+        &self,
+        index: i32,
+        sample_offset: *mut i32,
+        value: *mut Vst::ParamValue,
+    ) -> tresult {
+        if index != 0 || sample_offset.is_null() || value.is_null() {
+            return kInvalidArgument;
+        }
+        if !self.state.active.load(Ordering::Acquire) {
+            return kResultFalse;
+        }
+        *sample_offset = self.state.sample_offset.load(Ordering::Relaxed);
+        *value = f64::from_bits(self.state.value_bits.load(Ordering::Relaxed));
+        kResultOk
+    }
+
+    unsafe fn addPoint(
+        &self,
+        sample_offset: i32,
+        value: Vst::ParamValue,
+        index: *mut i32,
+    ) -> tresult {
+        self.state
+            .sample_offset
+            .store(sample_offset, Ordering::Relaxed);
+        self.state
+            .value_bits
+            .store(value.to_bits(), Ordering::Relaxed);
+        self.state.active.store(true, Ordering::Release);
+        if !index.is_null() {
+            *index = 0;
+        }
+        kResultOk
+    }
+}
+
+struct HostParameterQueueEntry {
+    id: Vst::ParamID,
+    state: Arc<HostParameterQueueState>,
+    interface: ComPtr<IParamValueQueue>,
+}
+
+struct HostParameterChanges {
+    entries: Arc<Vec<HostParameterQueueEntry>>,
+}
+
+impl HostParameterChanges {
+    fn create(
+        parameter_ids: &[Vst::ParamID],
+    ) -> Result<(Self, Arc<Vec<HostParameterQueueEntry>>), String> {
+        let mut entries = Vec::with_capacity(parameter_ids.len());
+        for id in parameter_ids {
+            let state = Arc::new(HostParameterQueueState::default());
+            let interface = ComWrapper::new(HostParamValueQueue {
+                id: *id,
+                state: Arc::clone(&state),
+            })
+            .to_com_ptr::<IParamValueQueue>()
+            .ok_or_else(|| String::from("Failed to allocate a VST3 parameter-value queue."))?;
+            entries.push(HostParameterQueueEntry {
+                id: *id,
+                state,
+                interface,
+            });
+        }
+        let entries = Arc::new(entries);
+        Ok((
+            Self {
+                entries: Arc::clone(&entries),
+            },
+            entries,
+        ))
+    }
+}
+
+impl Class for HostParameterChanges {
+    type Interfaces = (IParameterChanges,);
+}
+
+impl IParameterChangesTrait for HostParameterChanges {
+    unsafe fn getParameterCount(&self) -> i32 {
+        self.entries
+            .iter()
+            .filter(|entry| entry.state.active.load(Ordering::Acquire))
+            .count() as i32
+    }
+
+    unsafe fn getParameterData(&self, index: i32) -> *mut IParamValueQueue {
+        if index < 0 {
+            return std::ptr::null_mut();
+        }
+        self.entries
+            .iter()
+            .filter(|entry| entry.state.active.load(Ordering::Acquire))
+            .nth(index as usize)
+            .map(|entry| entry.interface.as_ptr())
+            .unwrap_or(std::ptr::null_mut())
+    }
+
+    unsafe fn addParameterData(
+        &self,
+        id: *const Vst::ParamID,
+        index: *mut i32,
+    ) -> *mut IParamValueQueue {
+        if id.is_null() {
+            return std::ptr::null_mut();
+        }
+        let Some(entry) = self.entries.iter().find(|entry| entry.id == *id) else {
+            return std::ptr::null_mut();
+        };
+        entry.state.active.store(true, Ordering::Release);
+        if !index.is_null() {
+            *index = self
+                .entries
+                .iter()
+                .filter(|candidate| candidate.state.active.load(Ordering::Acquire))
+                .position(|candidate| candidate.id == entry.id)
+                .unwrap_or(0) as i32;
+        }
+        entry.interface.as_ptr()
+    }
+}
+
+fn controller_parameter_ids(controller: &ComPtr<IEditController>) -> Vec<Vst::ParamID> {
+    let count = unsafe { controller.getParameterCount() }.max(0);
+    let mut ids = Vec::with_capacity(count as usize);
+    for index in 0..count {
+        let mut info: ParameterInfo = unsafe { zeroed() };
+        if unsafe { controller.getParameterInfo(index, &mut info) } == kResultOk {
+            ids.push(info.id);
+        }
+    }
+    ids
 }
 
 fn make_live_render_event(event: LiveRenderEvent) -> Event {
@@ -422,7 +613,11 @@ fn make_live_render_event(event: LiveRenderEvent) -> Event {
         busIndex: 0,
         sampleOffset: event.sample_offset as i32,
         ppqPosition: 0.0,
-        flags: VstEventFlags::kIsLive as u16,
+        flags: if event.is_live {
+            VstEventFlags::kIsLive as u16
+        } else {
+            0
+        },
         r#type: match event.kind {
             LiveRenderEventKind::NoteOn => VstEventTypes::kNoteOnEvent as u16,
             LiveRenderEventKind::NoteOff => VstEventTypes::kNoteOffEvent as u16,
@@ -452,61 +647,186 @@ fn make_live_render_event(event: LiveRenderEvent) -> Event {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct OutputBusLayout {
-    bus_index: i32,
+struct AudioBusLayout {
     channel_count: usize,
 }
 
-#[derive(Default)]
 struct RenderScratch {
-    events: Arc<StdMutex<Vec<Event>>>,
+    events: Arc<HostEventBuffer>,
     event_list: Option<ComPtr<IEventList>>,
+    input_parameter_changes: Option<ComPtr<IParameterChanges>>,
+    input_parameter_entries: Option<Arc<Vec<HostParameterQueueEntry>>>,
+    output_parameter_changes: Option<ComPtr<IParameterChanges>>,
+    output_parameter_entries: Option<Arc<Vec<HostParameterQueueEntry>>>,
+    input_bus_channels_data: Vec<Vec<Vec<f32>>>,
     output_bus_channels_data: Vec<Vec<Vec<f32>>>,
+    input_bus_channel_ptrs: Vec<Vec<usize>>,
+    output_bus_channel_ptrs: Vec<Vec<usize>>,
+    input_bus_buffers: Vec<AudioBusBuffers>,
+    output_bus_buffers: Vec<AudioBusBuffers>,
 }
 
-fn output_bus_layouts(component: &ComPtr<IComponent>) -> Vec<OutputBusLayout> {
-    let bus_count = unsafe {
-        component.getBusCount(
-            Vst::MediaTypes_::kAudio as i32,
-            Vst::BusDirections_::kOutput as i32,
-        )
-    };
+impl Default for RenderScratch {
+    fn default() -> Self {
+        Self {
+            events: Arc::new(HostEventBuffer::new()),
+            event_list: None,
+            input_parameter_changes: None,
+            input_parameter_entries: None,
+            output_parameter_changes: None,
+            output_parameter_entries: None,
+            input_bus_channels_data: Vec::new(),
+            output_bus_channels_data: Vec::new(),
+            input_bus_channel_ptrs: Vec::new(),
+            output_bus_channel_ptrs: Vec::new(),
+            input_bus_buffers: Vec::new(),
+            output_bus_buffers: Vec::new(),
+        }
+    }
+}
 
-    if bus_count <= 0 {
-        return vec![OutputBusLayout {
-            bus_index: 0,
-            channel_count: 2,
-        }];
+impl RenderScratch {
+    fn initialize_event_list(&mut self) -> Result<(), String> {
+        self.event_list = ComWrapper::new(HostEventList {
+            events: self.events.clone(),
+        })
+        .to_com_ptr::<IEventList>();
+        if self.event_list.is_none() {
+            return Err(String::from("Failed to allocate the VST event-list shim."));
+        }
+        Ok(())
     }
 
-    let mut layouts = Vec::new();
+    fn initialize_parameter_changes(
+        &mut self,
+        controller: &ComPtr<IEditController>,
+    ) -> Result<(), String> {
+        let parameter_ids = controller_parameter_ids(controller);
+        let (input, input_entries) = HostParameterChanges::create(&parameter_ids)?;
+        let (output, output_entries) = HostParameterChanges::create(&parameter_ids)?;
+        self.input_parameter_changes = ComWrapper::new(input).to_com_ptr::<IParameterChanges>();
+        self.output_parameter_changes = ComWrapper::new(output).to_com_ptr::<IParameterChanges>();
+        self.input_parameter_entries = Some(input_entries);
+        self.output_parameter_entries = Some(output_entries);
+        if self.input_parameter_changes.is_none() || self.output_parameter_changes.is_none() {
+            return Err(String::from(
+                "Failed to allocate VST3 parameter-change shims.",
+            ));
+        }
+        Ok(())
+    }
+
+    fn clear_parameter_changes(&self) {
+        for entries in [
+            self.input_parameter_entries.as_ref(),
+            self.output_parameter_entries.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            for entry in entries.iter() {
+                entry.state.active.store(false, Ordering::Release);
+            }
+        }
+    }
+
+    fn set_input_parameter(&self, edit: HostParameterEdit) {
+        let Some(entries) = self.input_parameter_entries.as_ref() else {
+            return;
+        };
+        if let Some(entry) = entries.iter().find(|entry| entry.id == edit.id) {
+            entry.state.sample_offset.store(0, Ordering::Relaxed);
+            entry
+                .state
+                .value_bits
+                .store(edit.value_normalized.to_bits(), Ordering::Relaxed);
+            entry.state.active.store(true, Ordering::Release);
+        }
+    }
+
+    fn rebuild_bus_buffers(&mut self) {
+        self.input_bus_channel_ptrs = self
+            .input_bus_channels_data
+            .iter_mut()
+            .map(|channels| {
+                channels
+                    .iter_mut()
+                    .map(|channel| channel.as_mut_ptr() as usize)
+                    .collect()
+            })
+            .collect();
+        self.output_bus_channel_ptrs = self
+            .output_bus_channels_data
+            .iter_mut()
+            .map(|channels| {
+                channels
+                    .iter_mut()
+                    .map(|channel| channel.as_mut_ptr() as usize)
+                    .collect()
+            })
+            .collect();
+        self.input_bus_buffers = self
+            .input_bus_channel_ptrs
+            .iter_mut()
+            .map(|channel_ptrs| AudioBusBuffers {
+                numChannels: channel_ptrs.len() as i32,
+                silenceFlags: if channel_ptrs.len() >= 64 {
+                    u64::MAX
+                } else {
+                    (1_u64 << channel_ptrs.len()) - 1
+                },
+                __field0: AudioBusBuffers__type0 {
+                    channelBuffers32: channel_ptrs.as_mut_ptr().cast::<*mut f32>(),
+                },
+            })
+            .collect();
+        self.output_bus_buffers = self
+            .output_bus_channel_ptrs
+            .iter_mut()
+            .map(|channel_ptrs| AudioBusBuffers {
+                numChannels: channel_ptrs.len() as i32,
+                silenceFlags: 0,
+                __field0: AudioBusBuffers__type0 {
+                    channelBuffers32: channel_ptrs.as_mut_ptr().cast::<*mut f32>(),
+                },
+            })
+            .collect();
+    }
+}
+
+fn audio_bus_layouts(
+    component: &ComPtr<IComponent>,
+    direction: i32,
+) -> Result<Vec<AudioBusLayout>, String> {
+    let bus_count = unsafe { component.getBusCount(Vst::MediaTypes_::kAudio as i32, direction) };
+    if bus_count < 0 {
+        return Err(format!(
+            "Plugin returned an invalid audio bus count: {bus_count}."
+        ));
+    }
+
+    let mut layouts = Vec::with_capacity(bus_count as usize);
     for bus_index in 0..bus_count {
         let mut bus_info: BusInfo = unsafe { zeroed() };
         let result = unsafe {
             component.getBusInfo(
                 Vst::MediaTypes_::kAudio as i32,
-                Vst::BusDirections_::kOutput as i32,
+                direction,
                 bus_index,
                 &mut bus_info,
             )
         };
 
-        if result == kResultOk && bus_info.channelCount > 0 {
-            layouts.push(OutputBusLayout {
-                bus_index,
-                channel_count: bus_info.channelCount as usize,
-            });
+        if result != kResultOk || bus_info.channelCount < 0 {
+            return Err(format!(
+                "Failed to describe VST3 audio bus {bus_index} (direction={direction}, tresult={result})."
+            ));
         }
+        layouts.push(AudioBusLayout {
+            channel_count: bus_info.channelCount as usize,
+        });
     }
-
-    if layouts.is_empty() {
-        vec![OutputBusLayout {
-            bus_index: 0,
-            channel_count: 2,
-        }]
-    } else {
-        layouts
-    }
+    Ok(layouts)
 }
 
 fn activate_component_buses(component: &ComPtr<IComponent>) -> Result<(), String> {
@@ -527,8 +847,26 @@ fn activate_component_buses(component: &ComPtr<IComponent>) -> Result<(), String
             }
 
             for bus_index in 0..bus_count {
-                let activate_result =
-                    unsafe { component.activateBus(media_type, direction, bus_index, 1) };
+                let mut bus_info: BusInfo = unsafe { zeroed() };
+                let info_result = unsafe {
+                    component.getBusInfo(media_type, direction, bus_index, &mut bus_info)
+                };
+                if info_result != kResultOk {
+                    return Err(format!(
+                        "Failed to describe VST bus before activation (media_type={media_type}, direction={direction}, bus_index={bus_index}, tresult={info_result})."
+                    ));
+                }
+                let should_activate = bus_info.flags & Vst::BusInfo_::BusFlags_::kDefaultActive
+                    != 0
+                    || (bus_index == 0 && bus_info.busType == Vst::BusTypes_::kMain as i32);
+                let activate_result = unsafe {
+                    component.activateBus(
+                        media_type,
+                        direction,
+                        bus_index,
+                        u8::from(should_activate),
+                    )
+                };
                 if activate_result != kResultOk && activate_result != kResultTrue {
                     return Err(format!(
                         "Failed to activate VST bus (media_type={}, direction={}, bus_index={}, tresult={}).",
@@ -545,41 +883,95 @@ fn activate_component_buses(component: &ComPtr<IComponent>) -> Result<(), String
 impl PluginHostSession {
     fn ensure_render_scratch(&mut self, frames_per_block: usize) -> Result<(), String> {
         if self.render_scratch.event_list.is_none() {
-            self.render_scratch.event_list = ComWrapper::new(HostEventList {
-                events: self.render_scratch.events.clone(),
-            })
-            .to_com_ptr::<IEventList>();
-        }
-
-        if self.render_scratch.event_list.is_none() {
             return Err(String::from("Failed to allocate the VST event-list shim."));
         }
-
-        if self.render_scratch.output_bus_channels_data.is_empty()
-            || self.render_scratch.output_bus_channels_data.len() != self.render_output_buses.len()
-            || self
-                .render_scratch
-                .output_bus_channels_data
-                .iter()
-                .zip(&self.render_output_buses)
-                .any(|(channels, layout)| {
-                    channels.len() != layout.channel_count
-                        || channels
-                            .iter()
-                            .any(|channel| channel.len() < frames_per_block)
-                })
-        {
-            self.render_scratch.output_bus_channels_data = self
-                .render_output_buses
-                .iter()
-                .map(|layout| {
-                    (0..layout.channel_count)
-                        .map(|_| vec![0.0_f32; frames_per_block])
-                        .collect::<Vec<_>>()
-                })
-                .collect();
+        if frames_per_block > MAX_VST3_BLOCK_SIZE as usize {
+            return Err(format!(
+                "Audio callback block size {frames_per_block} exceeds VST3 scratch capacity."
+            ));
         }
 
+        Ok(())
+    }
+
+    fn prepare_render_processing(&mut self, sample_rate: u32) -> Result<(), String> {
+        let processor = self
+            .component
+            .cast::<Vst::IAudioProcessor>()
+            .ok_or_else(|| String::from("VST3 component does not expose IAudioProcessor."))?;
+
+        if unsafe { processor.canProcessSampleSize(Vst::SymbolicSampleSizes_::kSample32 as i32) }
+            != kResultOk
+        {
+            return Err(String::from(
+                "VST3 processor does not support 32-bit sample buffers.",
+            ));
+        }
+
+        self.stop_render_processing();
+        activate_component_buses(&self.component)?;
+        self.render_input_buses =
+            audio_bus_layouts(&self.component, Vst::BusDirections_::kInput as i32)?;
+        self.render_output_buses =
+            audio_bus_layouts(&self.component, Vst::BusDirections_::kOutput as i32)?;
+        self.render_buses_activated = true;
+
+        self.render_scratch.input_bus_channels_data = self
+            .render_input_buses
+            .iter()
+            .map(|layout| {
+                (0..layout.channel_count)
+                    .map(|_| vec![0.0_f32; MAX_VST3_BLOCK_SIZE as usize])
+                    .collect()
+            })
+            .collect();
+        self.render_scratch.output_bus_channels_data = self
+            .render_output_buses
+            .iter()
+            .map(|layout| {
+                (0..layout.channel_count)
+                    .map(|_| vec![0.0_f32; MAX_VST3_BLOCK_SIZE as usize])
+                    .collect()
+            })
+            .collect();
+        self.render_scratch.rebuild_bus_buffers();
+
+        let mut setup = ProcessSetup {
+            processMode: Vst::ProcessModes_::kRealtime as i32,
+            symbolicSampleSize: Vst::SymbolicSampleSizes_::kSample32 as i32,
+            maxSamplesPerBlock: MAX_VST3_BLOCK_SIZE,
+            sampleRate: f64::from(sample_rate),
+        };
+        let setup_result = unsafe { processor.setupProcessing(&mut setup) };
+        if setup_result != kResultOk {
+            return Err(format!(
+                "Failed to configure VST3 processing (tresult={setup_result})."
+            ));
+        }
+        let active_result = unsafe { self.component.setActive(1) };
+        if active_result != kResultOk {
+            return Err(format!(
+                "Failed to activate VST3 component (tresult={active_result})."
+            ));
+        }
+        self.render_component_active = true;
+        let processing_result = unsafe { processor.setProcessing(1) };
+        if processing_result != kResultOk {
+            let _ = unsafe { self.component.setActive(0) };
+            self.render_component_active = false;
+            return Err(format!(
+                "Failed to start VST3 processing (tresult={processing_result})."
+            ));
+        }
+        self.render_processing_active = true;
+        self.render_sample_rate = Some(sample_rate);
+        self.render_max_block_size = MAX_VST3_BLOCK_SIZE;
+        self.render_latency_samples = unsafe { processor.getLatencySamples() };
+        self.render_tail_samples = unsafe { processor.getTailSamples() };
+        if let Some(slot_id) = self.target.slot_id {
+            set_slot_latency(slot_id, self.render_latency_samples);
+            set_slot_tail(slot_id, self.render_tail_samples, sample_rate);
+        }
         Ok(())
     }
 
@@ -598,53 +990,16 @@ impl PluginHostSession {
                 )
             })?;
 
-        if !self.render_buses_activated {
-            activate_component_buses(&self.component)?;
-            self.render_output_buses = output_bus_layouts(&self.component);
-            self.render_buses_activated = true;
+        if !self.render_processing_active || self.render_sample_rate != Some(sample_rate) {
+            return Err(String::from(
+                "VST3 processor is not prepared for the active audio sample rate.",
+            ));
         }
-
-        let sample_rate_changed = self.render_sample_rate != Some(sample_rate);
-        let block_size_changed = max_samples_per_block > self.render_max_block_size;
-        if self.render_processing_active && (sample_rate_changed || block_size_changed) {
-            let _ = unsafe { processor.setProcessing(0) };
-            self.render_processing_active = false;
-        }
-
-        if !self.render_processing_active || sample_rate_changed || block_size_changed {
-            let mut setup = ProcessSetup {
-                processMode: 0,
-                symbolicSampleSize: 0,
-                maxSamplesPerBlock: max_samples_per_block,
-                sampleRate: f64::from(sample_rate),
-            };
-
-            let setup_result = unsafe { processor.setupProcessing(&mut setup) };
-            if setup_result != kResultOk {
-                return Err(format!(
-                    "Failed to configure slot realtime processing (tresult = {}).",
-                    setup_result
-                ));
-            }
-
-            // VST3 lifecycle: setActive before setProcessing
-            // (matches MuseScore ensureActivity and Steinberg spec order).
-            if !self.render_component_active {
-                let _ = unsafe { self.component.setActive(1) };
-                self.render_component_active = true;
-            }
-
-            let processing_result = unsafe { processor.setProcessing(1) };
-            if processing_result != kResultOk {
-                return Err(format!(
-                    "Failed to enable slot realtime processing (tresult = {}).",
-                    processing_result
-                ));
-            }
-
-            self.render_processing_active = true;
-            self.render_sample_rate = Some(sample_rate);
-            self.render_max_block_size = self.render_max_block_size.max(max_samples_per_block);
+        if max_samples_per_block > self.render_max_block_size {
+            return Err(format!(
+                "Audio callback block size {max_samples_per_block} exceeds prepared VST3 maximum {}.",
+                self.render_max_block_size
+            ));
         }
 
         Ok(processor)
@@ -681,51 +1036,26 @@ fn render_plugin_session_block(
     output_channels: usize,
 ) -> Result<bool, String> {
     let processor = session.ensure_render_processing(sample_rate, frames_per_block as i32)?;
-    if session.render_output_buses.is_empty() {
-        session.render_output_buses = vec![OutputBusLayout {
-            bus_index: 0,
-            channel_count: 2,
-        }];
-    }
     session.ensure_render_scratch(frames_per_block)?;
-
-    {
-        let mut shared_event_buffer = session
-            .render_scratch
-            .events
-            .lock()
-            .map_err(|_| String::from("Failed to populate slot realtime MIDI events."))?;
-        shared_event_buffer.clear();
-        shared_event_buffer.extend(events.iter().copied().map(make_live_render_event));
+    session.render_scratch.clear_parameter_changes();
+    while let Ok(edit) = session.parameter_edits.pop() {
+        session.render_scratch.set_input_parameter(edit);
     }
 
-    let mut output_bus_ptrs =
-        Vec::with_capacity(session.render_scratch.output_bus_channels_data.len());
-    let mut output_buses =
-        Vec::with_capacity(session.render_scratch.output_bus_channels_data.len());
-    for bus_index in 0..session.render_scratch.output_bus_channels_data.len() {
-        let channels = &mut session.render_scratch.output_bus_channels_data[bus_index];
-        let mut channel_ptrs = Vec::with_capacity(channels.len());
+    let shared_event_buffer = unsafe { session.render_scratch.events.events_mut() };
+    shared_event_buffer.clear();
+    shared_event_buffer.extend(events.iter().copied().map(make_live_render_event));
 
+    for channels in &mut session.render_scratch.input_bus_channels_data {
         for channel in channels.iter_mut() {
             channel[..frames_per_block].fill(0.0);
-            channel_ptrs.push(channel.as_mut_ptr());
         }
-
-        output_buses.push(AudioBusBuffers {
-            numChannels: channels.len() as i32,
-            silenceFlags: 0,
-            __field0: AudioBusBuffers__type0 {
-                channelBuffers32: channel_ptrs.as_mut_ptr(),
-            },
-        });
-        output_bus_ptrs.push(channel_ptrs);
     }
 
-    for (bus, channel_ptrs) in output_buses.iter_mut().zip(output_bus_ptrs.iter_mut()) {
-        bus.__field0 = AudioBusBuffers__type0 {
-            channelBuffers32: channel_ptrs.as_mut_ptr(),
-        };
+    for channels in &mut session.render_scratch.output_bus_channels_data {
+        for channel in channels.iter_mut() {
+            channel[..frames_per_block].fill(0.0);
+        }
     }
 
     let event_list = session
@@ -733,20 +1063,46 @@ fn render_plugin_session_block(
         .event_list
         .as_ref()
         .ok_or_else(|| String::from("Failed to allocate the VST event-list shim."))?;
+    let input_parameter_changes = session
+        .render_scratch
+        .input_parameter_changes
+        .as_ref()
+        .ok_or_else(|| String::from("Failed to allocate VST input parameter changes."))?;
+    let output_parameter_changes = session
+        .render_scratch
+        .output_parameter_changes
+        .as_ref()
+        .ok_or_else(|| String::from("Failed to allocate VST output parameter changes."))?;
+
+    let transport_playing = events.iter().any(|event| !event.is_live) || session.transport_playing;
+    if events.iter().any(|event| !event.is_live) {
+        session.transport_playing = true;
+    }
+    session.process_context.state = (Vst::ProcessContext_::StatesAndFlags_::kContTimeValid
+        | Vst::ProcessContext_::StatesAndFlags_::kTempoValid
+        | if transport_playing {
+            Vst::ProcessContext_::StatesAndFlags_::kPlaying
+        } else {
+            0
+        }) as u32;
+    session.process_context.sampleRate = f64::from(sample_rate);
+    session.process_context.projectTimeSamples = session.process_sample_position;
+    session.process_context.continousTimeSamples = session.process_sample_position;
+    session.process_context.tempo = f64::from_bits(RUNTIME_TEMPO_BITS.load(Ordering::Relaxed));
 
     let mut process_data = ProcessData {
         processMode: 0,
         symbolicSampleSize: 0,
         numSamples: frames_per_block as i32,
-        numInputs: 0,
-        numOutputs: output_buses.len() as i32,
-        inputs: std::ptr::null_mut(),
-        outputs: output_buses.as_mut_ptr(),
-        inputParameterChanges: std::ptr::null_mut(),
-        outputParameterChanges: std::ptr::null_mut(),
+        numInputs: session.render_scratch.input_bus_buffers.len() as i32,
+        numOutputs: session.render_scratch.output_bus_buffers.len() as i32,
+        inputs: session.render_scratch.input_bus_buffers.as_mut_ptr(),
+        outputs: session.render_scratch.output_bus_buffers.as_mut_ptr(),
+        inputParameterChanges: input_parameter_changes.as_ptr(),
+        outputParameterChanges: output_parameter_changes.as_ptr(),
         inputEvents: event_list.as_ptr(),
         outputEvents: std::ptr::null_mut(),
-        processContext: std::ptr::null_mut(),
+        processContext: &mut session.process_context,
     };
 
     let process_result = unsafe { processor.process(&mut process_data) };
@@ -756,25 +1112,22 @@ fn render_plugin_session_block(
             process_result
         ));
     }
+    session.process_sample_position += frames_per_block as i64;
 
-    let bus_peaks = session
+    let selected_bus_index = session
         .render_scratch
         .output_bus_channels_data
         .iter()
-        .map(|bus_channels| {
+        .enumerate()
+        .map(|(index, bus_channels)| {
             let mut bus_peak = 0.0_f32;
             for channel in bus_channels {
-                for sample in channel {
+                for sample in &channel[..frames_per_block] {
                     bus_peak = bus_peak.max(sample.abs());
                 }
             }
-            bus_peak
+            (index, bus_peak)
         })
-        .collect::<Vec<_>>();
-
-    let selected_bus_index = bus_peaks
-        .iter()
-        .enumerate()
         .max_by(|(_, left), (_, right)| {
             left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal)
         })
@@ -837,7 +1190,41 @@ pub(crate) fn stop_slot_runtime_render(slot_id: UniqueId) {
     };
 
     if let Some(session) = sessions.get_mut(&slot_id) {
-        session.stop_render_processing();
+        session.transport_playing = false;
+    }
+}
+
+fn prepare_slot_runtime_sessions_now(sample_rate: u32) -> Result<(), String> {
+    RUNTIME_AUDIO_SAMPLE_RATE.store(sample_rate, Ordering::Release);
+    let mut sessions = slot_runtime_sessions()
+        .lock()
+        .map_err(|_| String::from("Failed to access VST3 sessions for audio reconfiguration."))?;
+    for session in sessions.values_mut() {
+        session.prepare_render_processing(sample_rate)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn prepare_slot_runtime_sessions(
+    app: &AppHandle,
+    sample_rate: u32,
+) -> Result<(), String> {
+    if MainThreadMarker::new().is_some() {
+        return prepare_slot_runtime_sessions_now(sample_rate);
+    }
+    let (sender, receiver) = std::sync::mpsc::channel();
+    app.run_on_main_thread(move || {
+        let _ = sender.send(prepare_slot_runtime_sessions_now(sample_rate));
+    })
+    .map_err(|error| format!("Failed to schedule VST3 audio reconfiguration: {error}"))?;
+    receiver
+        .recv()
+        .map_err(|error| format!("Failed to receive VST3 audio reconfiguration result: {error}"))?
+}
+
+pub(crate) fn set_runtime_tempo(tempo: f64) {
+    if tempo.is_finite() && tempo > 0.0 {
+        RUNTIME_TEMPO_BITS.store(tempo.to_bits(), Ordering::Relaxed);
     }
 }
 
@@ -846,14 +1233,23 @@ pub(crate) fn stop_slot_runtime_render(slot_id: UniqueId) {
 // and sync_active_plugin_host.
 
 struct LoadedVst3Module {
-    binary_path: PathBuf,
     bundle_ref: Option<usize>,
-    get_plugin_factory: GetPluginFactoryFn,
+    factory: ManuallyDrop<ComPtr<IPluginFactory>>,
+    factory_host_context: ManuallyDrop<ComPtr<FUnknown>>,
     bundle_exit: Option<BundleExitFn>,
+}
+
+fn loaded_vst3_modules() -> &'static StdMutex<FxHashMap<PathBuf, Arc<LoadedVst3Module>>> {
+    static MODULES: OnceLock<StdMutex<FxHashMap<PathBuf, Arc<LoadedVst3Module>>>> = OnceLock::new();
+    MODULES.get_or_init(|| StdMutex::new(FxHashMap::default()))
 }
 
 impl Drop for LoadedVst3Module {
     fn drop(&mut self) {
+        unsafe {
+            ManuallyDrop::drop(&mut self.factory);
+            ManuallyDrop::drop(&mut self.factory_host_context);
+        }
         if let Some(bundle_exit) = self.bundle_exit {
             unsafe {
                 let _ = bundle_exit();
@@ -920,6 +1316,7 @@ macro_rules! impl_component_handler_traits {
                     "IComponentHandler::performEdit param_id={} value_normalized={}",
                     id, value_normalized,
                 ));
+                self.enqueue_parameter_edit(id, value_normalized);
                 kResultOk
             }
 
@@ -1022,7 +1419,36 @@ where
     const HEADER: Self::Header = <PluginComponentHandlerInterfaceTuple as MakeHeader<C, W>>::HEADER;
 }
 
-pub(crate) struct PluginComponentHandler;
+pub(crate) struct PluginComponentHandler {
+    parameter_edits: Option<StdMutex<Producer<HostParameterEdit>>>,
+}
+
+impl PluginComponentHandler {
+    fn disconnected() -> Self {
+        Self {
+            parameter_edits: None,
+        }
+    }
+
+    fn with_parameter_edits(parameter_edits: Producer<HostParameterEdit>) -> Self {
+        Self {
+            parameter_edits: Some(StdMutex::new(parameter_edits)),
+        }
+    }
+
+    fn enqueue_parameter_edit(&self, id: Vst::ParamID, value_normalized: Vst::ParamValue) {
+        let Some(parameter_edits) = self.parameter_edits.as_ref() else {
+            return;
+        };
+        let Ok(mut parameter_edits) = parameter_edits.lock() else {
+            return;
+        };
+        let _ = parameter_edits.push(HostParameterEdit {
+            id,
+            value_normalized,
+        });
+    }
+}
 
 impl Class for PluginComponentHandler {
     type Interfaces = PluginComponentHandlerInterfaces;
@@ -1079,7 +1505,7 @@ pub(super) fn create_plugin_host_application() -> Result<PluginHostApplicationHa
 
 #[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn create_component_handler() -> Result<ComPtr<IComponentHandler>, String> {
-    let component_handler = ComWrapper::new(PluginComponentHandler)
+    let component_handler = ComWrapper::new(PluginComponentHandler::disconnected())
         .to_com_ptr::<IComponentHandler>()
         .ok_or_else(|| String::from("Failed to allocate the VST3 component-handler shim."))?;
     super::log_active_host_phase_callback(&format!(
@@ -1087,6 +1513,19 @@ pub(super) fn create_component_handler() -> Result<ComPtr<IComponentHandler>, St
         interface_pointer_label(component_handler.as_ptr())
     ));
     Ok(component_handler)
+}
+
+fn create_component_handler_with_parameter_queue(
+) -> Result<(ComPtr<IComponentHandler>, Consumer<HostParameterEdit>), String> {
+    let (producer, consumer) = RingBuffer::new(PARAMETER_EDIT_QUEUE_CAPACITY);
+    let component_handler = ComWrapper::new(PluginComponentHandler::with_parameter_edits(producer))
+        .to_com_ptr::<IComponentHandler>()
+        .ok_or_else(|| String::from("Failed to allocate the VST3 component-handler shim."))?;
+    super::log_active_host_phase_callback(&format!(
+        "Allocated PluginComponentHandler component_handler_ptr={}",
+        interface_pointer_label(component_handler.as_ptr())
+    ));
+    Ok((component_handler, consumer))
 }
 
 fn connection_point_connect_succeeded(result: tresult) -> bool {
@@ -1208,7 +1647,19 @@ impl IPlugFrameTrait for PluginHostFrame {
     }
 }
 
-fn load_vst3_module(plugin_path: &Path) -> Result<LoadedVst3Module, String> {
+fn load_vst3_module(
+    plugin_path: &Path,
+    factory_host_context: &ComPtr<FUnknown>,
+) -> Result<Arc<LoadedVst3Module>, String> {
+    let module_key =
+        std::fs::canonicalize(plugin_path).unwrap_or_else(|_| plugin_path.to_path_buf());
+    let mut loaded_modules = loaded_vst3_modules()
+        .lock()
+        .map_err(|_| String::from("Failed to access the loaded VST3 module registry."))?;
+    if let Some(module) = loaded_modules.get(&module_key).cloned() {
+        return Ok(module);
+    }
+
     let binary_path = vst3_bundle_binary_path(plugin_path).map_err(|error| error.message)?;
     let bundle = CFURL::from_path(plugin_path, true)
         .and_then(CFBundle::new)
@@ -1248,57 +1699,72 @@ fn load_vst3_module(plugin_path: &Path) -> Result<LoadedVst3Module, String> {
 
     let bundle_entry_ptr =
         bundle.function_pointer_for_name(CFString::from_static_string("bundleEntry"));
-    if !bundle_entry_ptr.is_null() {
-        let bundle_entry: BundleEntryFn = unsafe { std::mem::transmute(bundle_entry_ptr) };
-        let entered = unsafe { bundle_entry(bundle_ref as *mut c_void) };
-        if !entered {
-            unsafe {
-                CFBundleUnloadExecutable(bundle_ref as _);
-                CFRelease(bundle_ref as CFTypeRef);
-            }
+    if bundle_entry_ptr.is_null() {
+        unsafe {
+            CFBundleUnloadExecutable(bundle_ref as _);
+            CFRelease(bundle_ref as CFTypeRef);
+        }
+        return Err(format!(
+            "VST3 bundle '{}' does not export the required bundleEntry function.",
+            binary_path.display()
+        ));
+    }
+    let bundle_entry: BundleEntryFn = unsafe { std::mem::transmute(bundle_entry_ptr) };
+    let entered = unsafe { bundle_entry(bundle_ref as *mut c_void) };
+    if !entered {
+        unsafe {
+            CFBundleUnloadExecutable(bundle_ref as _);
+            CFRelease(bundle_ref as CFTypeRef);
+        }
+        return Err(format!(
+            "VST3 bundle entry point returned false for '{}'.",
+            binary_path.display()
+        ));
+    }
+
+    let bundle_exit_ptr =
+        bundle.function_pointer_for_name(CFString::from_static_string("bundleExit"));
+    if bundle_exit_ptr.is_null() {
+        unsafe {
+            CFBundleUnloadExecutable(bundle_ref as _);
+            CFRelease(bundle_ref as CFTypeRef);
+        }
+        return Err(format!(
+            "VST3 bundle '{}' does not export the required bundleExit function.",
+            binary_path.display()
+        ));
+    }
+    let bundle_exit =
+        unsafe { std::mem::transmute::<*const c_void, BundleExitFn>(bundle_exit_ptr) };
+
+    let raw_factory = unsafe { get_plugin_factory() };
+    let factory = unsafe { ComPtr::from_raw(raw_factory) }.ok_or_else(|| {
+        format!(
+            "GetPluginFactory returned a null factory pointer for '{}'.",
+            binary_path.display()
+        )
+    })?;
+    if let Some(factory3) = factory.cast::<IPluginFactory3>() {
+        let result = unsafe { factory3.setHostContext(factory_host_context.as_ptr()) };
+        if result != kResultOk && result != kResultTrue {
             return Err(format!(
-                "VST3 bundle entry point returned false for '{}'.",
-                binary_path.display()
+                "Failed to configure the VST3 factory host context (tresult={result})."
             ));
         }
     }
 
-    let bundle_exit = {
-        let bundle_exit_ptr =
-            bundle.function_pointer_for_name(CFString::from_static_string("bundleExit"));
-        if bundle_exit_ptr.is_null() {
-            None
-        } else {
-            Some(unsafe { std::mem::transmute::<*const c_void, BundleExitFn>(bundle_exit_ptr) })
-        }
-    };
-
-    Ok(LoadedVst3Module {
-        binary_path,
+    let module = Arc::new(LoadedVst3Module {
         bundle_ref: Some(bundle_ref),
-        get_plugin_factory,
-        bundle_exit,
-    })
+        factory: ManuallyDrop::new(factory),
+        factory_host_context: ManuallyDrop::new(factory_host_context.clone()),
+        bundle_exit: Some(bundle_exit),
+    });
+    loaded_modules.insert(module_key, Arc::clone(&module));
+    Ok(module)
 }
 
 fn create_plugin_factory(module: &LoadedVst3Module) -> Result<ComPtr<IPluginFactory>, String> {
-    let raw_factory = unsafe { (module.get_plugin_factory)() };
-    unsafe { ComPtr::from_raw(raw_factory) }.ok_or_else(|| {
-        format!(
-            "GetPluginFactory returned a null factory pointer for '{}'.",
-            module.binary_path.display()
-        )
-    })
-}
-
-fn configure_factory_host_context(
-    factory: &ComPtr<IPluginFactory>,
-    host_context: &ComPtr<FUnknown>,
-) -> Option<tresult> {
-    let factory3 = factory.cast::<IPluginFactory3>()?;
-
-    let host_context_result = unsafe { factory3.setHostContext(host_context.as_ptr()) };
-    Some(host_context_result)
+    Ok((&*module.factory).clone())
 }
 
 fn class_info_string(field: &[i8]) -> String {
@@ -1436,17 +1902,34 @@ fn audio_module_class_candidates(factory: &ComPtr<IPluginFactory>) -> Vec<Compon
 fn create_component(
     factory: &ComPtr<IPluginFactory>,
     plugin_path: &Path,
+    requested_cid: Option<TUID>,
 ) -> Result<ComPtr<IComponent>, String> {
     let candidates = audio_module_class_candidates(factory);
     let requested_name = requested_component_name(plugin_path);
 
-    let candidate = select_component_class_candidate(&candidates, requested_name.as_deref())
-        .ok_or_else(|| {
-            String::from(
-                "Plugin editor POC could not find an audio-module component class in the VST3 factory.",
-            )
-        })?;
+    let candidate = match requested_cid.as_ref() {
+        Some(requested_cid) => candidates
+            .iter()
+            .find(|candidate| &candidate.cid == requested_cid)
+            .ok_or_else(|| {
+                String::from(
+                    "The selected VST3 processor CID is not exposed by the loaded plugin factory.",
+                )
+            })?,
+        None => select_component_class_candidate(&candidates, requested_name.as_deref())
+            .ok_or_else(|| {
+                String::from(
+                    "Plugin editor POC could not find an audio-module component class in the VST3 factory.",
+                )
+            })?,
+    };
     let mut raw_object: *mut c_void = std::ptr::null_mut();
+    super::log_active_host_phase_callback(&format!(
+        "IPluginFactory::createInstance component_name={} cid={} iid={}",
+        candidate.name,
+        super::host_callback_iid_hex(&candidate.cid),
+        super::host_callback_iid_hex(&IComponent_iid),
+    ));
     let result = unsafe {
         factory.createInstance(
             candidate.cid.as_ptr(),
@@ -1523,6 +2006,7 @@ fn create_memory_stream() -> Result<(HostMemoryStream, ComPtr<IBStream>), String
 
 fn export_component_state(
     component: &ComPtr<IComponent>,
+    controller: &ComPtr<IEditController>,
 ) -> Result<SlotRuntimePluginStateCapture, String> {
     let (stream_state, stream) = create_memory_stream()?;
     let get_state_result = unsafe { component.getState(stream.as_ptr()) };
@@ -1531,9 +2015,17 @@ fn export_component_state(
     }
 
     let bytes = stream_state.snapshot_bytes()?;
+    let (controller_stream_state, controller_stream) = create_memory_stream()?;
+    let controller_state =
+        if unsafe { controller.getState(controller_stream.as_ptr()) } == kResultOk {
+            Some(BASE64_STANDARD.encode(controller_stream_state.snapshot_bytes()?))
+        } else {
+            None
+        };
     Ok(SlotRuntimePluginStateCapture::Captured(
         PlaybackSlotPluginState {
             vst3_component_state_base64: BASE64_STANDARD.encode(bytes),
+            vst3_controller_state_base64: controller_state,
         },
     ))
 }
@@ -1578,6 +2070,27 @@ pub(super) fn sync_component_state_to_controller(
         ));
     }
 
+    Ok(())
+}
+
+pub(super) fn restore_controller_state(
+    controller: &ComPtr<IEditController>,
+    plugin_state: &PlaybackSlotPluginState,
+) -> Result<(), String> {
+    let Some(encoded_state) = plugin_state.vst3_controller_state_base64.as_ref() else {
+        return Ok(());
+    };
+    let bytes = BASE64_STANDARD
+        .decode(encoded_state.as_bytes())
+        .map_err(|error| format!("Failed to decode persisted VST3 controller state: {error}"))?;
+    let (stream_state, stream) = create_memory_stream()?;
+    stream_state.replace_bytes(bytes)?;
+    let result = unsafe { controller.setState(stream.as_ptr()) };
+    if result != kResultOk {
+        return Err(format!(
+            "Failed to restore persisted VST3 controller state (tresult={result})."
+        ));
+    }
     Ok(())
 }
 
@@ -2032,19 +2545,28 @@ fn build_slot_runtime_session_on_main_thread(
         target.bundle_path.clone(),
         slot_id,
         target.plugin_state.clone(),
-    );
+    )
+    .with_component_cid(super::component_cid_from_plugin_id(&target.plugin_id));
     let restorable_plugin_state = target.plugin_state.clone();
+    let sample_rate = RUNTIME_AUDIO_SAMPLE_RATE.load(Ordering::Acquire);
 
     if MainThreadMarker::new().is_some() {
-        return build_plugin_host_session(&target_identity, restorable_plugin_state.as_ref())
-            .map_err(|error| error.message);
+        let mut session =
+            build_plugin_host_session(&target_identity, restorable_plugin_state.as_ref())
+                .map_err(|error| error.message)?;
+        session.prepare_render_processing(sample_rate)?;
+        return Ok(session);
     }
 
     let (sender, receiver) = std::sync::mpsc::channel();
     let build_target = target_identity.clone();
     app.run_on_main_thread(move || {
         let result = build_plugin_host_session(&build_target, restorable_plugin_state.as_ref())
-            .map_err(|error| error.message);
+            .map_err(|error| error.message)
+            .and_then(|mut session| {
+                session.prepare_render_processing(sample_rate)?;
+                Ok(session)
+            });
         let _ = sender.send(result);
     })
     .map_err(|error| format!("Failed to schedule slot runtime creation: {error}"))?;
@@ -2067,7 +2589,7 @@ fn capture_slot_runtime_plugin_state_now(
         return Ok(SlotRuntimePluginStateCapture::MissingSession);
     };
 
-    export_component_state(&session.component)
+    export_component_state(&session.component, &session.controller)
 }
 
 pub(crate) fn capture_slot_runtime_plugin_state(
@@ -2238,6 +2760,9 @@ pub fn sync_active_plugin_host(_focused: Option<bool>, reason: super::PluginHost
                     right: content_frame.size.width as i32,
                     bottom: content_frame.size.height as i32,
                 };
+                unsafe {
+                    let _ = view.checkSizeConstraint(&mut new_rect);
+                }
                 let mut current_rect = ViewRect {
                     left: 0,
                     top: 0,

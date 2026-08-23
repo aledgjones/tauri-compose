@@ -65,6 +65,8 @@ pub struct PlaybackSlotTarget {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlaybackSlotPluginState {
     pub vst3_component_state_base64: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vst3_controller_state_base64: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize_repr, Deserialize_repr)]

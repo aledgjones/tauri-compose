@@ -655,6 +655,7 @@ mod tests {
             plugin_id: String::from("plugin-a"),
             plugin_state: Some(PlaybackSlotPluginState {
                 vst3_component_state_base64: String::from("AQID"),
+                vst3_controller_state_base64: None,
             }),
         });
         score.instruments.by_id.get_mut(&10).unwrap().playback_route =
@@ -675,6 +676,7 @@ mod tests {
                 bundle_path: PathBuf::from("/Library/Audio/Plug-Ins/VST3/Plugin A.vst3"),
                 plugin_state: Some(PlaybackSlotPluginState {
                     vst3_component_state_base64: String::from("AQID"),
+                    vst3_controller_state_base64: None,
                 }),
                 expression_map: None,
                 target: score
@@ -719,6 +721,7 @@ mod tests {
             plugin_id: String::from("plugin-a"),
             plugin_state: Some(PlaybackSlotPluginState {
                 vst3_component_state_base64: String::from("AQID"),
+                vst3_controller_state_base64: None,
             }),
         });
         score.instruments.by_id.get_mut(&10).unwrap().playback_route =
@@ -737,6 +740,7 @@ mod tests {
                 .and_then(|target| target.plugin_state.as_ref()),
             Some(&PlaybackSlotPluginState {
                 vst3_component_state_base64: String::from("AQID"),
+                vst3_controller_state_base64: None,
             })
         );
         assert_eq!(

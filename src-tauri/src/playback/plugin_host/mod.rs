@@ -2,6 +2,7 @@
 
 use crate::playback::engine::{set_slot_editor_render_active, LiveRenderEvent};
 use crate::playback::plugin_inventory::bounded_editor_host_unsupported_reason;
+use crate::playback::plugin_inventory::component_cid_from_plugin_id;
 use crate::playback::plugin_inventory::{
     blocked_editor_host_validation, PluginCapabilityEvidence, PluginCapabilityEvidenceStatus,
     PluginEditorHostLoadInitProbeStatus, PluginEditorHostValidation,
@@ -354,7 +355,7 @@ fn restart_component_flags_label(flags: i32) -> String {
 
 fn restart_component_result(flags: i32) -> vst3::Steinberg::tresult {
     let _ = flags;
-    vst3::Steinberg::kResultOk
+    vst3::Steinberg::kNotImplemented
 }
 
 fn host_callback_iid_hex(iid: &vst3::Steinberg::TUID) -> String {
@@ -467,6 +468,7 @@ fn apply_slot_runtime_plugin_state_capture(
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PluginEditorTarget {
     plugin_path: PathBuf,
+    component_cid: Option<vst3::Steinberg::TUID>,
     slot_id: Option<UniqueId>,
     plugin_state: Option<PlaybackSlotPluginState>,
 }
@@ -475,6 +477,7 @@ impl PluginEditorTarget {
     fn inventory(plugin_path: PathBuf) -> Self {
         Self {
             plugin_path,
+            component_cid: None,
             slot_id: None,
             plugin_state: None,
         }
@@ -487,6 +490,7 @@ impl PluginEditorTarget {
     ) -> Self {
         Self {
             plugin_path,
+            component_cid: None,
             slot_id: Some(slot_id),
             plugin_state,
         }
@@ -494,6 +498,11 @@ impl PluginEditorTarget {
 
     fn path(&self) -> &Path {
         &self.plugin_path
+    }
+
+    fn with_component_cid(mut self, component_cid: Option<vst3::Steinberg::TUID>) -> Self {
+        self.component_cid = component_cid;
+        self
     }
 }
 
@@ -1041,11 +1050,10 @@ fn resolve_requested_plugin_target(
                 .and_then(|slot| slot.target.as_ref())
                 .and_then(|target| target.plugin_state.clone())
         };
-        return Ok(Some(PluginEditorTarget::slot_with_state(
-            plugin_path,
-            slot_id,
-            plugin_state,
-        )));
+        return Ok(Some(
+            PluginEditorTarget::slot_with_state(plugin_path, slot_id, plugin_state)
+                .with_component_cid(component_cid_from_plugin_id(&slot_plugin_id)),
+        ));
     }
 
     if let Some(plugin_id) = plugin_id.map(str::trim).filter(|value| !value.is_empty()) {
@@ -1054,7 +1062,10 @@ fn resolve_requested_plugin_target(
             .map_err(|_| String::from("Failed to read plugin inventory state"))?;
         let plugin_path = plugin_inventory.resolve_available_bundle_path(plugin_id)?;
         validate_vst3_bundle(&plugin_path).map_err(|error| error.message)?;
-        return Ok(Some(PluginEditorTarget::inventory(plugin_path)));
+        return Ok(Some(
+            PluginEditorTarget::inventory(plugin_path)
+                .with_component_cid(component_cid_from_plugin_id(plugin_id)),
+        ));
     }
 
     if let Some(path) = requested_plugin_target_candidate(explicit_plugin_path) {
@@ -1255,7 +1266,9 @@ mod macos_host;
 use macos_host::{
     attach_native_host_surface as attach_native_host_surface_impl,
     capture_slot_runtime_plugin_state as capture_slot_runtime_plugin_state_impl,
+    prepare_slot_runtime_sessions as prepare_slot_runtime_sessions_impl,
     render_slot_runtime_block as render_slot_runtime_block_impl,
+    set_runtime_tempo as set_runtime_tempo_impl,
     stop_slot_runtime_render as stop_slot_runtime_render_impl,
     sync_slot_runtime_sessions as sync_slot_runtime_sessions_impl, PluginHostSession,
 };
@@ -1282,6 +1295,19 @@ pub(crate) fn capture_slot_runtime_plugin_state(
     slot_id: UniqueId,
 ) -> Result<SlotRuntimePluginStateCapture, String> {
     capture_slot_runtime_plugin_state_impl(app, slot_id)
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn prepare_slot_runtime_sessions(
+    app: &AppHandle,
+    sample_rate: u32,
+) -> Result<(), String> {
+    prepare_slot_runtime_sessions_impl(app, sample_rate)
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn set_runtime_tempo(tempo: f64) {
+    set_runtime_tempo_impl(tempo);
 }
 
 #[cfg(target_os = "macos")]
@@ -1323,6 +1349,17 @@ pub(crate) fn capture_slot_runtime_plugin_state(
 ) -> Result<SlotRuntimePluginStateCapture, String> {
     Ok(SlotRuntimePluginStateCapture::MissingSession)
 }
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn prepare_slot_runtime_sessions(
+    _app: &AppHandle,
+    _sample_rate: u32,
+) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn set_runtime_tempo(_tempo: f64) {}
 
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn render_slot_runtime_block(
@@ -1964,6 +2001,7 @@ mod tests {
             12,
             Some(PlaybackSlotPluginState {
                 vst3_component_state_base64: String::from("AQID"),
+                vst3_controller_state_base64: None,
             }),
         );
         reserve_plugin_target(&target, false).unwrap();
@@ -1975,6 +2013,7 @@ mod tests {
                 bundle_path: PathBuf::from("/tmp/test-plugin.vst3"),
                 plugin_state: Some(PlaybackSlotPluginState {
                     vst3_component_state_base64: String::from("BAUG"),
+                    vst3_controller_state_base64: None,
                 }),
             },
         ));
@@ -1989,6 +2028,7 @@ mod tests {
             bundle_path: PathBuf::from("/tmp/test-plugin.vst3"),
             plugin_state: Some(PlaybackSlotPluginState {
                 vst3_component_state_base64: String::from("AQID"),
+                vst3_controller_state_base64: None,
             }),
         };
 
@@ -2003,6 +2043,7 @@ mod tests {
                 Path::new("/tmp/test-plugin.vst3"),
                 Some(&PlaybackSlotPluginState {
                     vst3_component_state_base64: String::from("BAUG"),
+                    vst3_controller_state_base64: None,
                 }),
                 &desired_target,
             );
@@ -2023,6 +2064,7 @@ mod tests {
                     plugin_id: String::from("plugin-a"),
                     plugin_state: Some(PlaybackSlotPluginState {
                         vst3_component_state_base64: String::from("AQID"),
+                        vst3_controller_state_base64: None,
                     }),
                 }),
             },
@@ -2036,6 +2078,7 @@ mod tests {
                     plugin_id: String::from("plugin-b"),
                     plugin_state: Some(PlaybackSlotPluginState {
                         vst3_component_state_base64: String::from("BAUG"),
+                        vst3_controller_state_base64: None,
                     }),
                 }),
             },
@@ -2055,6 +2098,7 @@ mod tests {
                 .and_then(|target| target.plugin_state.as_ref()),
             Some(&PlaybackSlotPluginState {
                 vst3_component_state_base64: String::from("AQID"),
+                vst3_controller_state_base64: None,
             })
         );
         assert_eq!(
@@ -2237,20 +2281,20 @@ mod tests {
     }
 
     #[test]
-    fn restart_component_result_keeps_note_expression_restart_supported() {
+    fn restart_component_result_does_not_acknowledge_unhandled_note_expression_restart() {
         assert_eq!(
             super::restart_component_result(
                 vst3::Steinberg::Vst::RestartFlags_::kNoteExpressionChanged,
             ),
-            vst3::Steinberg::kResultOk
+            vst3::Steinberg::kNotImplemented
         );
     }
 
     #[test]
-    fn restart_component_result_keeps_plain_restarts_supported() {
+    fn restart_component_result_does_not_acknowledge_unhandled_component_reload() {
         assert_eq!(
             super::restart_component_result(vst3::Steinberg::Vst::RestartFlags_::kReloadComponent),
-            vst3::Steinberg::kResultOk
+            vst3::Steinberg::kNotImplemented
         );
     }
 

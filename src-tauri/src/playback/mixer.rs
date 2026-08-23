@@ -1,22 +1,31 @@
-use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use crossbeam_queue::ArrayQueue;
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
+use std::sync::Arc;
+
+const MAX_STREAM_BUFFER_SAMPLES: usize = 48_000 * 2 * 2;
+const MAX_AUDIO_CALLBACK_FRAMES: usize = 16_384;
+const MASTER_LIMIT_THRESHOLD: f32 = 0.95;
+static MASTER_PEAK_BITS: AtomicU32 = AtomicU32::new(0);
+static CURRENT_MASTER_PEAK_BITS: AtomicU32 = AtomicU32::new(0);
+static MASTER_OVERLOAD_COUNT: AtomicU64 = AtomicU64::new(0);
 
 /// Shared buffer between a producer thread and the audio mixer.
 #[cfg_attr(not(test), allow(dead_code))]
 pub struct StreamBuffer {
-    buffer: Mutex<VecDeque<f32>>,
+    buffer: ArrayQueue<f32>,
     finished: AtomicBool,
     canceled: AtomicBool,
+    dropped_samples: AtomicU64,
 }
 
 impl StreamBuffer {
     #[cfg_attr(not(test), allow(dead_code))]
     pub fn new() -> Self {
         Self {
-            buffer: Mutex::new(VecDeque::with_capacity(48000 * 2)),
+            buffer: ArrayQueue::new(MAX_STREAM_BUFFER_SAMPLES),
             finished: AtomicBool::new(false),
             canceled: AtomicBool::new(false),
+            dropped_samples: AtomicU64::new(0),
         }
     }
 
@@ -26,8 +35,15 @@ impl StreamBuffer {
             return;
         }
 
-        let mut buf = self.buffer.lock().unwrap();
-        buf.extend(samples);
+        let mut accepted = 0;
+        for sample in samples {
+            if self.buffer.push(*sample).is_err() {
+                break;
+            }
+            accepted += 1;
+        }
+        self.dropped_samples
+            .fetch_add((samples.len() - accepted) as u64, Ordering::Relaxed);
     }
 
     #[allow(dead_code)]
@@ -36,23 +52,25 @@ impl StreamBuffer {
     }
 
     pub fn drain_mix(&self, output: &mut [f32]) -> usize {
-        let mut buf = self.buffer.lock().unwrap();
-        let sample_count = output.len().min(buf.len());
-        for index in 0..sample_count {
-            output[index] += buf[index];
+        let mut sample_count = 0;
+        for destination in output {
+            let Some(sample) = self.buffer.pop() else {
+                break;
+            };
+            *destination += sample;
+            sample_count += 1;
         }
-        buf.drain(..sample_count);
         sample_count
     }
 
     pub fn cancel(&self) {
         self.canceled.store(true, Ordering::Release);
         self.finished.store(true, Ordering::Release);
-        self.buffer.lock().unwrap().clear();
+        while self.buffer.pop().is_some() {}
     }
 
     pub fn is_exhausted(&self) -> bool {
-        self.finished.load(Ordering::Acquire) && self.buffer.lock().unwrap().is_empty()
+        self.finished.load(Ordering::Acquire) && self.buffer.is_empty()
     }
 }
 
@@ -60,54 +78,49 @@ impl StreamBuffer {
 struct Voice {
     stream: Arc<StreamBuffer>,
     channels: usize,
-    finished: AtomicBool,
+    generation: u64,
+    remap_scratch: Vec<f32>,
 }
 
 /// A handle to submit new voices into the mixer.
 /// This is cheaply cloneable and can be sent to any thread.
 #[derive(Clone)]
 pub struct MixerHandle {
-    voices: Arc<VoiceList>,
+    commands: Arc<ArrayQueue<Box<Voice>>>,
+    generation: Arc<AtomicU64>,
+    claimed_voices: Arc<AtomicUsize>,
 }
 
 /// The mixer reads from the voice list in the audio callback.
 /// This must only be used from the audio thread.
 pub struct MixerReader {
-    voices: Arc<VoiceList>,
+    commands: Arc<ArrayQueue<Box<Voice>>>,
+    generation: Arc<AtomicU64>,
+    claimed_voices: Arc<AtomicUsize>,
+    voices: [Option<Box<Voice>>; MAX_VOICES],
 }
 
 /// Lock-free voice list using a fixed-size slot array.
 /// Slots are claimed atomically and recycled when voices finish.
 const MAX_VOICES: usize = 64;
 
-struct VoiceList {
-    slots: Box<[VoiceSlot; MAX_VOICES]>,
-}
-
-struct VoiceSlot {
-    voice: Mutex<Option<Arc<Voice>>>,
-    active: AtomicBool,
-}
-
-impl VoiceList {
-    fn new() -> Self {
-        VoiceList {
-            slots: Box::new(std::array::from_fn(|_| VoiceSlot {
-                voice: Mutex::new(None),
-                active: AtomicBool::new(false),
-            })),
-        }
-    }
-}
-
 /// Create a linked mixer handle and reader pair.
 pub fn create_mixer() -> (MixerHandle, MixerReader) {
-    let voices = Arc::new(VoiceList::new());
+    let commands = Arc::new(ArrayQueue::new(MAX_VOICES));
+    let generation = Arc::new(AtomicU64::new(0));
+    let claimed_voices = Arc::new(AtomicUsize::new(0));
     (
         MixerHandle {
-            voices: voices.clone(),
+            commands: commands.clone(),
+            generation: generation.clone(),
+            claimed_voices: claimed_voices.clone(),
         },
-        MixerReader { voices },
+        MixerReader {
+            commands,
+            generation,
+            claimed_voices,
+            voices: std::array::from_fn(|_| None),
+        },
     )
 }
 
@@ -116,75 +129,72 @@ impl MixerHandle {
     /// into the stream buffer; the mixer drains it in the audio callback.
     #[cfg_attr(not(test), allow(dead_code))]
     pub fn play(&self, stream: Arc<StreamBuffer>, channels: usize) -> bool {
-        let voice = Arc::new(Voice {
+        if channels == 0 {
+            return false;
+        }
+        if self
+            .claimed_voices
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
+                (count < MAX_VOICES).then_some(count + 1)
+            })
+            .is_err()
+        {
+            return false;
+        }
+        let generation = self.generation.load(Ordering::Acquire);
+        let voice = Box::new(Voice {
             stream,
             channels,
-            finished: AtomicBool::new(false),
+            generation,
+            remap_scratch: vec![0.0; MAX_AUDIO_CALLBACK_FRAMES.saturating_mul(channels)],
         });
-
-        // Find a free slot
-        for slot in self.voices.slots.iter() {
-            if !slot.active.load(Ordering::Acquire)
-                && slot
-                    .active
-                    .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
-                    .is_ok()
-            {
-                let mut guard = slot.voice.lock().unwrap();
-                *guard = Some(voice);
-                return true;
-            }
+        if self.commands.push(voice).is_err() {
+            self.claimed_voices.fetch_sub(1, Ordering::AcqRel);
+            return false;
         }
-
-        eprintln!(
-            "Mixer: all {} voice slots are full, dropping note",
-            MAX_VOICES
-        );
-        false
+        true
     }
 
     /// Drop all active voices immediately so no already-started notes continue sounding.
     pub fn stop_all(&self) {
-        for slot in self.voices.slots.iter() {
-            if !slot.active.swap(false, Ordering::AcqRel) {
-                continue;
-            }
-
-            let mut guard = slot.voice.lock().unwrap();
-            if let Some(voice) = guard.as_ref() {
-                voice.stream.cancel();
-                voice.finished.store(true, Ordering::Relaxed);
-            }
-            *guard = None;
+        self.generation.fetch_add(1, Ordering::AcqRel);
+        while let Some(voice) = self.commands.pop() {
+            voice.stream.cancel();
         }
+        self.claimed_voices.store(0, Ordering::Release);
     }
 }
 
 impl MixerReader {
-    pub fn mix_into_buffer(&self, output: &mut [f32], channels: usize) {
-        for slot in self.voices.slots.iter() {
-            if !slot.active.load(Ordering::Acquire) {
-                continue;
-            }
-
-            // We briefly lock here but only to clone the Arc — very fast
-            let voice = {
-                let guard = slot.voice.lock().unwrap();
-                match &*guard {
-                    Some(v) => v.clone(),
-                    None => {
-                        slot.active.store(false, Ordering::Release);
-                        continue;
-                    }
+    pub fn mix_into_buffer(&mut self, output: &mut [f32], channels: usize) {
+        let generation = self.generation.load(Ordering::Acquire);
+        for slot in &mut self.voices {
+            if slot
+                .as_ref()
+                .is_some_and(|voice| voice.generation != generation)
+            {
+                if let Some(voice) = slot.take() {
+                    voice.stream.cancel();
                 }
-            };
-
-            if voice.finished.load(Ordering::Relaxed) {
-                let mut guard = slot.voice.lock().unwrap();
-                *guard = None;
-                slot.active.store(false, Ordering::Release);
+            }
+        }
+        while let Some(voice) = self.commands.pop() {
+            if voice.generation != generation {
+                voice.stream.cancel();
                 continue;
             }
+            let Some(slot) = self.voices.iter_mut().find(|slot| slot.is_none()) else {
+                voice.stream.cancel();
+                self.claimed_voices.fetch_sub(1, Ordering::AcqRel);
+                continue;
+            };
+            *slot = Some(voice);
+        }
+
+        for slot in &mut self.voices {
+            let Some(voice) = slot.as_mut() else {
+                continue;
+            };
 
             let voice_channels = voice.channels;
 
@@ -193,10 +203,10 @@ impl MixerReader {
             if voice_channels == channels {
                 voice.stream.drain_mix(output);
             } else {
-                // Channel mismatch — drain into a temporary buffer then remap
                 let needed = output.len() / channels * voice_channels;
-                let mut tmp = vec![0.0_f32; needed];
-                let drained = voice.stream.drain_mix(&mut tmp);
+                let usable = needed.min(voice.remap_scratch.len());
+                voice.remap_scratch[..usable].fill(0.0);
+                let drained = voice.stream.drain_mix(&mut voice.remap_scratch[..usable]);
                 let frames = drained / voice_channels;
 
                 for frame in 0..frames {
@@ -206,37 +216,73 @@ impl MixerReader {
                         } else {
                             out_ch.min(voice_channels - 1)
                         };
-                        output[frame * channels + out_ch] += tmp[frame * voice_channels + voice_ch];
+                        output[frame * channels + out_ch] +=
+                            voice.remap_scratch[frame * voice_channels + voice_ch];
                     }
                 }
             }
 
             // If the stream is finished and drained, recycle the slot
             if voice.stream.is_exhausted() {
-                voice.finished.store(true, Ordering::Relaxed);
-                let mut guard = slot.voice.lock().unwrap();
-                *guard = None;
-                slot.active.store(false, Ordering::Release);
+                *slot = None;
+                self.claimed_voices.fetch_sub(1, Ordering::AcqRel);
             }
         }
     }
 
-    pub fn clamp_buffer(output: &mut [f32]) {
+    pub fn limit_buffer(output: &mut [f32]) {
+        let mut peak = 0.0_f32;
+        let mut overloads = 0_u64;
         for sample in output.iter_mut() {
-            *sample = sample.clamp(-1.0, 1.0);
+            let magnitude = sample.abs();
+            peak = peak.max(magnitude);
+            overloads += u64::from(magnitude > 1.0);
+            if magnitude > MASTER_LIMIT_THRESHOLD {
+                let normalized_excess =
+                    (magnitude - MASTER_LIMIT_THRESHOLD) / (1.0 - MASTER_LIMIT_THRESHOLD);
+                let limited = MASTER_LIMIT_THRESHOLD
+                    + (1.0 - MASTER_LIMIT_THRESHOLD) * normalized_excess.tanh();
+                *sample = sample.signum() * limited;
+            }
+        }
+        MASTER_OVERLOAD_COUNT.fetch_add(overloads, Ordering::Relaxed);
+        CURRENT_MASTER_PEAK_BITS.store(peak.to_bits(), Ordering::Relaxed);
+        let mut recorded = f32::from_bits(MASTER_PEAK_BITS.load(Ordering::Relaxed));
+        while peak > recorded {
+            match MASTER_PEAK_BITS.compare_exchange_weak(
+                recorded.to_bits(),
+                peak.to_bits(),
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => break,
+                Err(bits) => recorded = f32::from_bits(bits),
+            }
         }
     }
 
     /// Mix all active voices into the output buffer (additive mixing).
     /// Called from the audio callback — must be fast.
     #[cfg_attr(not(test), allow(dead_code))]
-    pub fn fill_buffer(&self, output: &mut [f32], channels: usize) {
+    pub fn fill_buffer(&mut self, output: &mut [f32], channels: usize) {
         // Zero the output first
         output.fill(0.0);
 
         self.mix_into_buffer(output, channels);
-        Self::clamp_buffer(output);
+        Self::limit_buffer(output);
     }
+}
+
+pub(crate) fn master_overload_count() -> u64 {
+    MASTER_OVERLOAD_COUNT.load(Ordering::Relaxed)
+}
+
+pub(crate) fn master_peak() -> f32 {
+    f32::from_bits(MASTER_PEAK_BITS.load(Ordering::Relaxed))
+}
+
+pub(crate) fn current_master_peak() -> f32 {
+    f32::from_bits(CURRENT_MASTER_PEAK_BITS.load(Ordering::Relaxed))
 }
 
 #[cfg(test)]
@@ -245,7 +291,7 @@ mod tests {
 
     #[test]
     fn stop_all_clears_active_voices_immediately() {
-        let (handle, reader) = create_mixer();
+        let (handle, mut reader) = create_mixer();
         let stream = Arc::new(StreamBuffer::new());
         stream.push(&[0.5, 0.5, 0.25, 0.25]);
 
@@ -257,5 +303,34 @@ mod tests {
         reader.fill_buffer(&mut output, 2);
 
         assert_eq!(output, [0.0, 0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn master_limiter_preserves_normal_levels_and_bounds_overloads() {
+        let mut output = [-0.5, 0.5, -2.0, 2.0];
+
+        MixerReader::limit_buffer(&mut output);
+
+        assert_eq!(output[0], -0.5);
+        assert_eq!(output[1], 0.5);
+        assert!(output[2] >= -1.0 && output[2] < -MASTER_LIMIT_THRESHOLD);
+        assert!(output[3] <= 1.0 && output[3] > MASTER_LIMIT_THRESHOLD);
+    }
+
+    #[test]
+    fn stop_all_allows_immediate_new_voice() {
+        let (handle, mut reader) = create_mixer();
+        let old_stream = Arc::new(StreamBuffer::new());
+        old_stream.push(&[0.75, 0.75]);
+        assert!(handle.play(old_stream, 2));
+        handle.stop_all();
+
+        let new_stream = Arc::new(StreamBuffer::new());
+        new_stream.push(&[0.25, 0.25]);
+        assert!(handle.play(new_stream, 2));
+
+        let mut output = [0.0; 2];
+        reader.mix_into_buffer(&mut output, 2);
+        assert_eq!(output, [0.25, 0.25]);
     }
 }

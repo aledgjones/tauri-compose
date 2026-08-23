@@ -4,11 +4,32 @@ use crate::playback::plugin_host::{
 };
 use crate::playback::preparation::EffectivePlaybackMix;
 use crate::utils::UniqueId;
+use crossbeam_queue::ArrayQueue;
 use rustc_hash::{FxHashMap, FxHashSet};
+#[cfg(not(test))]
+use std::cell::UnsafeCell;
 use std::f32;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 const AUDITION_RELEASE_TAIL_MS: u32 = 1_000;
+const ENGINE_COMMAND_CAPACITY: usize = 65_536;
+const MAX_RENDER_SLOTS: usize = 128;
+const MAX_EVENTS_PER_SLOT: usize = 256;
+const MAX_OUTPUT_SAMPLES: usize = 16_384 * 8;
+const MAX_INFINITE_TAIL_SECONDS: u64 = 10;
+static RENDER_ERROR_COUNT: AtomicU64 = AtomicU64::new(0);
+static DROPPED_ENGINE_COMMAND_COUNT: AtomicU64 = AtomicU64::new(0);
+static AUDIO_SAMPLE_POSITION: AtomicU64 = AtomicU64::new(0);
+static AUDIO_CALLBACK_FRAMES: AtomicU64 = AtomicU64::new(0);
+static MAX_PLUGIN_LATENCY_SAMPLES: AtomicU64 = AtomicU64::new(0);
+static PENDING_TRANSPORT_WORK: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+fn last_render_error_state() -> &'static Mutex<Option<(UniqueId, String)>> {
+    static LAST_RENDER_ERROR: OnceLock<Mutex<Option<(UniqueId, String)>>> = OnceLock::new();
+    LAST_RENDER_ERROR.get_or_init(|| Mutex::new(None))
+}
 
 fn audition_release_tail_frames(sample_rate: u32) -> u64 {
     (u64::from(sample_rate) * u64::from(AUDITION_RELEASE_TAIL_MS) / 1_000).max(1)
@@ -24,6 +45,7 @@ pub enum LiveRenderEventKind {
 pub struct LiveRenderEvent {
     pub sample_offset: usize,
     pub kind: LiveRenderEventKind,
+    pub is_live: bool,
     pub pitch: u8,
     pub velocity: u8,
     pub note_id: i32,
@@ -41,6 +63,56 @@ enum RenderEventOwner {
     Transport,
 }
 
+#[derive(Clone, Copy, Debug)]
+enum AudioEngineCommand {
+    AddSlot(UniqueId),
+    RemoveSlot(UniqueId),
+    SetMix(UniqueId, EffectivePlaybackMix),
+    SetEditorActive(UniqueId, bool),
+    SetTransportActive(UniqueId, bool),
+    SetLatency(UniqueId, u32),
+    SetTail(UniqueId, u64),
+    ClearTransport,
+    QueueAudition {
+        slot_id: UniqueId,
+        sample_rate: u32,
+        note: AuditionNote,
+    },
+    QueueTransportNote {
+        slot_id: UniqueId,
+        sample_offset: usize,
+        duration_frames: u64,
+        pitch: u8,
+        velocity: u8,
+    },
+}
+
+#[derive(Default)]
+struct AudioEngineControlState {
+    live_slots: FxHashSet<UniqueId>,
+    transport_targets: FxHashSet<UniqueId>,
+    latency_by_slot: FxHashMap<UniqueId, u32>,
+}
+
+fn audio_engine_commands() -> &'static ArrayQueue<AudioEngineCommand> {
+    static COMMANDS: OnceLock<ArrayQueue<AudioEngineCommand>> = OnceLock::new();
+    COMMANDS.get_or_init(|| ArrayQueue::new(ENGINE_COMMAND_CAPACITY))
+}
+
+fn audio_engine_control_state() -> &'static Mutex<AudioEngineControlState> {
+    static CONTROL_STATE: OnceLock<Mutex<AudioEngineControlState>> = OnceLock::new();
+    CONTROL_STATE.get_or_init(|| Mutex::new(AudioEngineControlState::default()))
+}
+
+fn submit_audio_engine_command(command: AudioEngineCommand) -> bool {
+    if audio_engine_commands().push(command).is_err() {
+        DROPPED_ENGINE_COMMAND_COUNT.fetch_add(1, Ordering::Relaxed);
+        false
+    } else {
+        true
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct QueuedRenderEvent {
     owner: RenderEventOwner,
@@ -51,7 +123,7 @@ struct QueuedRenderEvent {
     note_id: i32,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct SlotRenderState {
     editor_active: bool,
     audition_active: bool,
@@ -59,7 +131,30 @@ struct SlotRenderState {
     tail_frames_remaining: u64,
     next_note_id: i32,
     active_transport_note_ids: FxHashSet<i32>,
+    latency_samples: u32,
+    plugin_tail_frames: u64,
     queued_events: Vec<QueuedRenderEvent>,
+    render_events: Vec<LiveRenderEvent>,
+}
+
+impl Default for SlotRenderState {
+    fn default() -> Self {
+        Self {
+            editor_active: false,
+            audition_active: false,
+            transport_active: false,
+            tail_frames_remaining: 0,
+            next_note_id: 0,
+            active_transport_note_ids: FxHashSet::with_capacity_and_hasher(
+                MAX_EVENTS_PER_SLOT,
+                Default::default(),
+            ),
+            latency_samples: 0,
+            plugin_tail_frames: 0,
+            queued_events: Vec::with_capacity(MAX_EVENTS_PER_SLOT),
+            render_events: Vec::with_capacity(MAX_EVENTS_PER_SLOT),
+        }
+    }
 }
 
 impl SlotRenderState {
@@ -81,16 +176,11 @@ impl SlotRenderState {
     }
 
     fn enqueue_event(&mut self, event: QueuedRenderEvent) {
-        self.queued_events.push(event);
-        self.queued_events
-            .sort_by_key(|queued| queued.frames_until_dispatch);
-    }
-
-    fn requeue_due_events(&mut self, events: Vec<QueuedRenderEvent>) {
-        for event in events {
-            self.queued_events.push(event);
+        if self.queued_events.len() >= MAX_EVENTS_PER_SLOT {
+            DROPPED_ENGINE_COMMAND_COUNT.fetch_add(1, Ordering::Relaxed);
+            return;
         }
-
+        self.queued_events.push(event);
         self.queued_events
             .sort_by_key(|queued| queued.frames_until_dispatch);
     }
@@ -114,6 +204,15 @@ impl SlotRenderState {
         had_transport_state
     }
 
+    fn clear_after_terminal_render_failure(&mut self) {
+        self.editor_active = false;
+        self.audition_active = false;
+        self.transport_active = false;
+        self.tail_frames_remaining = 0;
+        self.active_transport_note_ids.clear();
+        self.queued_events.clear();
+    }
+
     fn is_render_active(&self) -> bool {
         self.editor_active
             || self.transport_active
@@ -122,27 +221,31 @@ impl SlotRenderState {
             || !self.queued_events.is_empty()
     }
 
-    fn collect_due_events(&mut self, frames_per_block: usize) -> Vec<QueuedRenderEvent> {
+    fn prepare_due_events(&mut self, frames_per_block: usize) -> usize {
         let frames_per_block = frames_per_block as u64;
-        let mut due_events = Vec::new();
-        let mut remaining_events = Vec::with_capacity(self.queued_events.len());
-
-        for mut queued in self.queued_events.drain(..) {
-            if queued.frames_until_dispatch < frames_per_block {
-                due_events.push(queued);
-            } else {
-                queued.frames_until_dispatch -= frames_per_block;
-                remaining_events.push(queued);
-            }
+        let due_count = self
+            .queued_events
+            .partition_point(|event| event.frames_until_dispatch < frames_per_block);
+        self.render_events.clear();
+        for event in &self.queued_events[..due_count] {
+            self.render_events.push(LiveRenderEvent {
+                sample_offset: event.frames_until_dispatch as usize,
+                kind: event.kind,
+                is_live: event.owner == RenderEventOwner::Audition,
+                pitch: event.pitch,
+                velocity: event.velocity,
+                note_id: event.note_id,
+            });
         }
-
-        self.queued_events = remaining_events;
-        due_events.sort_by_key(|event| event.frames_until_dispatch);
-        due_events
+        for event in &mut self.queued_events[due_count..] {
+            event.frames_until_dispatch -= frames_per_block;
+        }
+        due_count
     }
 
-    fn apply_rendered_transport_events(&mut self, events: &[QueuedRenderEvent]) {
-        for event in events {
+    fn commit_due_events(&mut self, due_count: usize) {
+        for index in 0..due_count {
+            let event = self.queued_events[index];
             if event.owner != RenderEventOwner::Transport {
                 continue;
             }
@@ -156,6 +259,14 @@ impl SlotRenderState {
                 }
             }
         }
+        self.queued_events.drain(..due_count);
+        self.render_events.clear();
+        if self.transport_active
+            && self.active_transport_note_ids.is_empty()
+            && !self.has_queued_transport_events()
+        {
+            self.tail_frames_remaining = self.tail_frames_remaining.max(self.plugin_tail_frames);
+        }
     }
 
     fn finish_block(&mut self, sample_rate: u32, frames_per_block: usize) {
@@ -168,9 +279,12 @@ impl SlotRenderState {
             }
         }
 
+        let transport_events_drained = self.transport_active
+            && self.active_transport_note_ids.is_empty()
+            && !self.has_queued_transport_events();
         if !self.editor_active
-            && !self.transport_active
             && !self.audition_active
+            && (!self.transport_active || transport_events_drained)
             && self.tail_frames_remaining > 0
         {
             self.tail_frames_remaining = self
@@ -180,11 +294,28 @@ impl SlotRenderState {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct ContinuousRenderEngineState {
     slot_states: FxHashMap<UniqueId, SlotRenderState>,
     slot_mix_by_slot_id: FxHashMap<UniqueId, EffectivePlaybackMix>,
     mix_scratch_buffer: Vec<f32>,
+    slot_ids_scratch: Vec<UniqueId>,
+    slots_to_stop_scratch: Vec<UniqueId>,
+}
+
+impl Default for ContinuousRenderEngineState {
+    fn default() -> Self {
+        Self {
+            slot_states: FxHashMap::with_capacity_and_hasher(MAX_RENDER_SLOTS, Default::default()),
+            slot_mix_by_slot_id: FxHashMap::with_capacity_and_hasher(
+                MAX_RENDER_SLOTS,
+                Default::default(),
+            ),
+            mix_scratch_buffer: vec![0.0; MAX_OUTPUT_SAMPLES],
+            slot_ids_scratch: Vec::with_capacity(MAX_RENDER_SLOTS),
+            slots_to_stop_scratch: Vec::with_capacity(MAX_RENDER_SLOTS),
+        }
+    }
 }
 
 impl ContinuousRenderEngineState {
@@ -199,6 +330,7 @@ impl ContinuousRenderEngineState {
         (gain * (1.0 - pan.max(0.0)), gain * (1.0 + pan.min(0.0)))
     }
 
+    #[cfg(test)]
     fn sync_live_slots(&mut self, live_slot_ids: &FxHashSet<UniqueId>) -> Vec<UniqueId> {
         let mut removed_slot_ids = Vec::new();
         self.slot_states.retain(|slot_id, _| {
@@ -219,13 +351,6 @@ impl ContinuousRenderEngineState {
         removed_slot_ids
     }
 
-    fn sync_slot_mix_states(
-        &mut self,
-        slot_mix_by_slot_id: FxHashMap<UniqueId, EffectivePlaybackMix>,
-    ) {
-        self.slot_mix_by_slot_id = slot_mix_by_slot_id;
-    }
-
     fn set_slot_mix(&mut self, slot_id: UniqueId, mix: EffectivePlaybackMix) {
         self.slot_mix_by_slot_id.insert(slot_id, mix);
         self.slot_states.entry(slot_id).or_default();
@@ -242,6 +367,78 @@ impl ContinuousRenderEngineState {
         !state.is_render_active()
     }
 
+    fn set_transport_active(&mut self, slot_id: UniqueId, active: bool) -> bool {
+        let state = self.slot_states.entry(slot_id).or_default();
+        let was_active = state.is_render_active();
+        state.transport_active = active;
+        was_active && !state.is_render_active()
+    }
+
+    fn apply_pending_commands<B: RenderBackend>(&mut self, backend: &B) {
+        while let Some(command) = audio_engine_commands().pop() {
+            match command {
+                AudioEngineCommand::AddSlot(slot_id) => {
+                    if self.slot_states.len() < MAX_RENDER_SLOTS
+                        || self.slot_states.contains_key(&slot_id)
+                    {
+                        self.slot_states.entry(slot_id).or_default();
+                    } else {
+                        DROPPED_ENGINE_COMMAND_COUNT.fetch_add(1, Ordering::Relaxed);
+                    }
+                }
+                AudioEngineCommand::RemoveSlot(slot_id) => {
+                    self.slot_states.remove(&slot_id);
+                    self.slot_mix_by_slot_id.remove(&slot_id);
+                    backend.stop_slot(slot_id);
+                }
+                AudioEngineCommand::SetMix(slot_id, mix) => self.set_slot_mix(slot_id, mix),
+                AudioEngineCommand::SetEditorActive(slot_id, active) => {
+                    if self.set_slot_reason(slot_id, RenderActiveReason::Editor, active) {
+                        backend.stop_slot(slot_id);
+                    }
+                }
+                AudioEngineCommand::SetTransportActive(slot_id, active) => {
+                    if self.set_transport_active(slot_id, active) {
+                        backend.stop_slot(slot_id);
+                    }
+                }
+                AudioEngineCommand::SetLatency(slot_id, latency_samples) => {
+                    self.slot_states.entry(slot_id).or_default().latency_samples = latency_samples;
+                }
+                AudioEngineCommand::SetTail(slot_id, tail_frames) => {
+                    self.slot_states
+                        .entry(slot_id)
+                        .or_default()
+                        .plugin_tail_frames = tail_frames;
+                }
+                AudioEngineCommand::ClearTransport => {
+                    for slot_id in self.clear_transport_playback() {
+                        backend.stop_slot(slot_id);
+                    }
+                }
+                AudioEngineCommand::QueueAudition {
+                    slot_id,
+                    sample_rate,
+                    note,
+                } => self.queue_audition_note(slot_id, sample_rate, note),
+                AudioEngineCommand::QueueTransportNote {
+                    slot_id,
+                    sample_offset,
+                    duration_frames,
+                    pitch,
+                    velocity,
+                } => self.queue_transport_note(
+                    slot_id,
+                    sample_offset,
+                    duration_frames,
+                    pitch,
+                    velocity,
+                ),
+            }
+        }
+    }
+
+    #[cfg(test)]
     fn set_transport_targets(&mut self, slot_ids: &FxHashSet<UniqueId>) -> Vec<UniqueId> {
         let mut inactive_slots = Vec::new();
         for (existing_slot_id, state) in &mut self.slot_states {
@@ -297,6 +494,7 @@ impl ContinuousRenderEngineState {
     ) {
         let state = self.slot_states.entry(slot_id).or_default();
         state.transport_active = true;
+        let sample_offset = sample_offset.saturating_sub(state.latency_samples as usize);
         let note_id = state.allocate_note_id();
         state.enqueue_event(QueuedRenderEvent {
             owner: RenderEventOwner::Transport,
@@ -326,12 +524,15 @@ impl ContinuousRenderEngineState {
             }
         }
 
+        slots_to_stop.sort_unstable();
         slots_to_stop
     }
 
     fn has_pending_transport_work(&self) -> bool {
         self.slot_states.values().any(|state| {
-            state.has_queued_transport_events() || !state.active_transport_note_ids.is_empty()
+            state.has_queued_transport_events()
+                || !state.active_transport_note_ids.is_empty()
+                || (state.transport_active && state.tail_frames_remaining > 0)
         })
     }
 
@@ -342,12 +543,25 @@ impl ContinuousRenderEngineState {
         output_channels: usize,
         sample_rate: u32,
     ) {
+        let output_len = output.len();
+        if output_len > self.mix_scratch_buffer.len() {
+            RENDER_ERROR_COUNT.fetch_add(1, Ordering::Relaxed);
+            return;
+        }
         let frames_per_block = output.len() / output_channels.max(1);
-        let mut slots_to_stop = Vec::new();
-        let slot_ids = self.slot_states.keys().copied().collect::<Vec<_>>();
+        self.slots_to_stop_scratch.clear();
+        self.slot_ids_scratch.clear();
+        self.slot_ids_scratch
+            .extend(self.slot_states.keys().copied());
 
-        for slot_id in slot_ids {
-            let (mix, due_events) = {
+        for slot_index in 0..self.slot_ids_scratch.len() {
+            let slot_id = self.slot_ids_scratch[slot_index];
+            let mix = self
+                .slot_mix_by_slot_id
+                .get(&slot_id)
+                .copied()
+                .unwrap_or_default();
+            let due_count = {
                 let Some(slot_state) = self.slot_states.get_mut(&slot_id) else {
                     continue;
                 };
@@ -355,69 +569,56 @@ impl ContinuousRenderEngineState {
                 if !slot_state.is_render_active() {
                     continue;
                 }
-
-                (
-                    self.slot_mix_by_slot_id
-                        .get(&slot_id)
-                        .copied()
-                        .unwrap_or_default(),
-                    slot_state.collect_due_events(frames_per_block),
-                )
+                slot_state.prepare_due_events(frames_per_block)
             };
 
-            let events = due_events
-                .iter()
-                .map(|event| LiveRenderEvent {
-                    sample_offset: event.frames_until_dispatch as usize,
-                    kind: event.kind,
-                    pitch: event.pitch,
-                    velocity: event.velocity,
-                    note_id: event.note_id,
-                })
-                .collect::<Vec<_>>();
-
-            self.mix_scratch_buffer.clear();
-            self.mix_scratch_buffer.resize(output.len(), 0.0);
-            let outcome = backend.render_slot(
-                slot_id,
-                sample_rate,
-                frames_per_block,
-                &events,
-                self.mix_scratch_buffer.as_mut_slice(),
-                output_channels,
-            );
+            self.mix_scratch_buffer[..output_len].fill(0.0);
+            let outcome = {
+                let slot_state = self.slot_states.get(&slot_id).unwrap();
+                backend.render_slot(
+                    slot_id,
+                    sample_rate,
+                    frames_per_block,
+                    &slot_state.render_events,
+                    &mut self.mix_scratch_buffer[..output_len],
+                    output_channels,
+                )
+            };
 
             match outcome {
                 SlotRuntimeRenderOutcome::Rendered | SlotRuntimeRenderOutcome::SilenceOnly => {
                     let Some(slot_state) = self.slot_states.get_mut(&slot_id) else {
                         continue;
                     };
-                    slot_state.apply_rendered_transport_events(&due_events);
+                    slot_state.commit_due_events(due_count);
                 }
                 SlotRuntimeRenderOutcome::Busy | SlotRuntimeRenderOutcome::MissingSession => {
-                    let Some(slot_state) = self.slot_states.get_mut(&slot_id) else {
-                        continue;
-                    };
-                    slot_state.requeue_due_events(due_events);
                     continue;
                 }
                 SlotRuntimeRenderOutcome::Unsupported => {
-                    slots_to_stop.push(slot_id);
+                    if let Some(slot_state) = self.slot_states.get_mut(&slot_id) {
+                        slot_state.clear_after_terminal_render_failure();
+                    }
+                    self.slots_to_stop_scratch.push(slot_id);
                 }
-                SlotRuntimeRenderOutcome::Error(error) => {
-                    eprintln!(
-                        "continuous_render_engine: slot {} render block failed: {}",
-                        slot_id, error
-                    );
-                    slots_to_stop.push(slot_id);
+                SlotRuntimeRenderOutcome::Error(_error) => {
+                    if let Ok(mut last_error) = last_render_error_state().try_lock() {
+                        *last_error = Some((slot_id, _error));
+                    }
+                    RENDER_ERROR_COUNT.fetch_add(1, Ordering::Relaxed);
+                    if let Some(slot_state) = self.slot_states.get_mut(&slot_id) {
+                        slot_state.clear_after_terminal_render_failure();
+                    }
+                    self.slots_to_stop_scratch.push(slot_id);
                 }
             }
 
             if !mix.muted {
                 let gain = mix.gain_scalar();
                 if output_channels <= 1 {
-                    for (destination, sample) in
-                        output.iter_mut().zip(self.mix_scratch_buffer.iter())
+                    for (destination, sample) in output
+                        .iter_mut()
+                        .zip(self.mix_scratch_buffer[..output_len].iter())
                     {
                         *destination += *sample * gain;
                     }
@@ -425,7 +626,7 @@ impl ContinuousRenderEngineState {
                     let (left_gain, right_gain) = Self::pan_balance_gains(mix);
                     for (destination_frame, source_frame) in output
                         .chunks_exact_mut(output_channels)
-                        .zip(self.mix_scratch_buffer.chunks_exact(output_channels))
+                        .zip(self.mix_scratch_buffer[..output_len].chunks_exact(output_channels))
                     {
                         destination_frame[0] += source_frame[0] * left_gain;
                         destination_frame[1] += source_frame[1] * right_gain;
@@ -442,14 +643,14 @@ impl ContinuousRenderEngineState {
             };
             slot_state.finish_block(sample_rate, frames_per_block);
             if !slot_state.is_render_active() {
-                slots_to_stop.push(slot_id);
+                self.slots_to_stop_scratch.push(slot_id);
             }
         }
 
-        slots_to_stop.sort_unstable();
-        slots_to_stop.dedup();
-        for slot_id in slots_to_stop {
-            backend.stop_slot(slot_id);
+        self.slots_to_stop_scratch.sort_unstable();
+        self.slots_to_stop_scratch.dedup();
+        for slot_id in &self.slots_to_stop_scratch {
+            backend.stop_slot(*slot_id);
         }
     }
 }
@@ -495,11 +696,25 @@ impl RenderBackend for SlotRuntimeRenderBackend {
     }
 }
 
+#[cfg(test)]
 fn continuous_render_engine() -> &'static Mutex<ContinuousRenderEngineState> {
     static CONTINUOUS_RENDER_ENGINE: OnceLock<Mutex<ContinuousRenderEngineState>> = OnceLock::new();
     CONTINUOUS_RENDER_ENGINE.get_or_init(|| Mutex::new(ContinuousRenderEngineState::default()))
 }
 
+#[cfg(not(test))]
+struct AudioOwnedEngine(UnsafeCell<ContinuousRenderEngineState>);
+
+#[cfg(not(test))]
+unsafe impl Sync for AudioOwnedEngine {}
+
+#[cfg(not(test))]
+fn audio_owned_engine() -> &'static AudioOwnedEngine {
+    static ENGINE: OnceLock<AudioOwnedEngine> = OnceLock::new();
+    ENGINE.get_or_init(|| AudioOwnedEngine(UnsafeCell::new(ContinuousRenderEngineState::default())))
+}
+
+#[cfg(test)]
 fn stop_slots(slot_ids: Vec<UniqueId>) {
     for slot_id in slot_ids {
         stop_slot_runtime_render(slot_id);
@@ -508,67 +723,121 @@ fn stop_slots(slot_ids: Vec<UniqueId>) {
 
 pub(crate) fn sync_live_slot_targets(slot_ids: impl IntoIterator<Item = UniqueId>) {
     let live_slot_ids = FxHashSet::from_iter(slot_ids);
-    let removed_slot_ids = continuous_render_engine()
-        .lock()
-        .unwrap()
-        .sync_live_slots(&live_slot_ids);
-    stop_slots(removed_slot_ids);
+    let mut control = audio_engine_control_state().lock().unwrap();
+    for slot_id in live_slot_ids.difference(&control.live_slots).copied() {
+        submit_audio_engine_command(AudioEngineCommand::AddSlot(slot_id));
+    }
+    let removed_slots = control
+        .live_slots
+        .difference(&live_slot_ids)
+        .copied()
+        .collect::<Vec<_>>();
+    for slot_id in removed_slots {
+        submit_audio_engine_command(AudioEngineCommand::RemoveSlot(slot_id));
+        control.latency_by_slot.remove(&slot_id);
+    }
+    control.live_slots = live_slot_ids;
+    MAX_PLUGIN_LATENCY_SAMPLES.store(
+        control.latency_by_slot.values().copied().max().unwrap_or(0) as u64,
+        Ordering::Release,
+    );
 }
 
 pub(crate) fn sync_slot_mix_states(slot_mix_by_slot_id: FxHashMap<UniqueId, EffectivePlaybackMix>) {
-    continuous_render_engine()
-        .lock()
-        .unwrap()
-        .sync_slot_mix_states(slot_mix_by_slot_id);
+    for (slot_id, mix) in slot_mix_by_slot_id {
+        submit_audio_engine_command(AudioEngineCommand::SetMix(slot_id, mix));
+    }
 }
 
 pub(crate) fn set_slot_mix(slot_id: UniqueId, mix: EffectivePlaybackMix) {
-    continuous_render_engine()
-        .lock()
-        .unwrap()
-        .set_slot_mix(slot_id, mix);
+    submit_audio_engine_command(AudioEngineCommand::SetMix(slot_id, mix));
+}
+
+pub(crate) fn set_slot_latency(slot_id: UniqueId, latency_samples: u32) {
+    let mut control = audio_engine_control_state().lock().unwrap();
+    control.latency_by_slot.insert(slot_id, latency_samples);
+    MAX_PLUGIN_LATENCY_SAMPLES.store(
+        control.latency_by_slot.values().copied().max().unwrap_or(0) as u64,
+        Ordering::Release,
+    );
+    submit_audio_engine_command(AudioEngineCommand::SetLatency(slot_id, latency_samples));
+}
+
+pub(crate) fn set_slot_tail(slot_id: UniqueId, tail_samples: u32, sample_rate: u32) {
+    let tail_frames = if tail_samples == u32::MAX {
+        u64::from(sample_rate).saturating_mul(MAX_INFINITE_TAIL_SECONDS)
+    } else {
+        u64::from(tail_samples)
+    };
+    submit_audio_engine_command(AudioEngineCommand::SetTail(slot_id, tail_frames));
 }
 
 pub(crate) fn set_slot_editor_render_active(slot_id: UniqueId, active: bool) {
-    let should_stop = continuous_render_engine().lock().unwrap().set_slot_reason(
-        slot_id,
-        RenderActiveReason::Editor,
-        active,
-    );
-    if should_stop {
-        stop_slot_runtime_render(slot_id);
-    }
+    submit_audio_engine_command(AudioEngineCommand::SetEditorActive(slot_id, active));
 }
 
 pub(crate) fn set_transport_render_targets(slot_ids: impl IntoIterator<Item = UniqueId>) {
     let active_slot_ids = FxHashSet::from_iter(slot_ids);
-    let slots_to_stop = continuous_render_engine()
-        .lock()
-        .unwrap()
-        .set_transport_targets(&active_slot_ids);
-    stop_slots(slots_to_stop);
+    let mut control = audio_engine_control_state().lock().unwrap();
+    for slot_id in active_slot_ids
+        .symmetric_difference(&control.transport_targets)
+        .copied()
+    {
+        submit_audio_engine_command(AudioEngineCommand::SetTransportActive(
+            slot_id,
+            active_slot_ids.contains(&slot_id),
+        ));
+    }
+    control.transport_targets = active_slot_ids;
 }
 
 pub(crate) fn clear_transport_playback() {
-    let slots_to_stop = continuous_render_engine()
+    PENDING_TRANSPORT_WORK.store(false, Ordering::Release);
+    audio_engine_control_state()
         .lock()
         .unwrap()
-        .clear_transport_playback();
-    stop_slots(slots_to_stop);
+        .transport_targets
+        .clear();
+    submit_audio_engine_command(AudioEngineCommand::ClearTransport);
 }
 
 pub(crate) fn transport_playback_has_pending_work() -> bool {
-    continuous_render_engine()
+    PENDING_TRANSPORT_WORK.load(Ordering::Acquire)
+}
+
+pub(crate) fn audio_sample_position() -> u64 {
+    AUDIO_SAMPLE_POSITION.load(Ordering::Acquire)
+}
+
+pub(crate) fn audio_callback_frames() -> u64 {
+    AUDIO_CALLBACK_FRAMES.load(Ordering::Acquire)
+}
+
+pub(crate) fn max_plugin_latency_samples() -> u64 {
+    MAX_PLUGIN_LATENCY_SAMPLES.load(Ordering::Acquire)
+}
+
+pub(crate) fn render_error_count() -> u64 {
+    RENDER_ERROR_COUNT.load(Ordering::Relaxed)
+}
+
+pub(crate) fn last_render_error() -> Option<(UniqueId, String)> {
+    last_render_error_state()
         .lock()
-        .unwrap()
-        .has_pending_transport_work()
+        .ok()
+        .and_then(|last_error| last_error.clone())
+}
+
+pub(crate) fn dropped_engine_command_count() -> u64 {
+    DROPPED_ENGINE_COMMAND_COUNT.load(Ordering::Relaxed)
 }
 
 pub(crate) fn queue_audition_note(slot_id: UniqueId, sample_rate: u32, note: AuditionNote) {
-    continuous_render_engine()
-        .lock()
-        .unwrap()
-        .queue_audition_note(slot_id, sample_rate, note);
+    submit_audio_engine_command(AudioEngineCommand::QueueAudition {
+        slot_id,
+        sample_rate,
+        note,
+    });
 }
 
 pub(crate) fn queue_transport_note(
@@ -578,23 +847,55 @@ pub(crate) fn queue_transport_note(
     pitch: u8,
     velocity: u8,
 ) {
-    continuous_render_engine()
-        .lock()
-        .unwrap()
-        .queue_transport_note(slot_id, sample_offset, duration_frames, pitch, velocity);
+    if submit_audio_engine_command(AudioEngineCommand::QueueTransportNote {
+        slot_id,
+        sample_offset,
+        duration_frames,
+        pitch,
+        velocity,
+    }) {
+        PENDING_TRANSPORT_WORK.store(true, Ordering::Release);
+    }
 }
 
 pub(crate) fn process_audio_block(output: &mut [f32], output_channels: usize, sample_rate: u32) {
-    let Ok(mut engine) = continuous_render_engine().try_lock() else {
-        return;
+    let frames_per_block = output.len() / output_channels.max(1);
+    AUDIO_CALLBACK_FRAMES.store(frames_per_block as u64, Ordering::Release);
+
+    #[cfg(test)]
+    let mut engine = {
+        let Ok(engine) = continuous_render_engine().try_lock() else {
+            return;
+        };
+        engine
     };
 
+    #[cfg(not(test))]
+    let engine = unsafe { &mut *audio_owned_engine().0.get() };
+
+    #[cfg(test)]
+    process_audio_block_with_engine(&mut engine, output, output_channels, sample_rate);
+
+    #[cfg(not(test))]
+    process_audio_block_with_engine(engine, output, output_channels, sample_rate);
+
+    AUDIO_SAMPLE_POSITION.fetch_add(frames_per_block as u64, Ordering::AcqRel);
+}
+
+fn process_audio_block_with_engine(
+    engine: &mut ContinuousRenderEngineState,
+    output: &mut [f32],
+    output_channels: usize,
+    sample_rate: u32,
+) {
+    engine.apply_pending_commands(&SlotRuntimeRenderBackend);
     engine.process_block(
         &SlotRuntimeRenderBackend,
         output,
         output_channels,
         sample_rate,
     );
+    PENDING_TRANSPORT_WORK.store(engine.has_pending_transport_work(), Ordering::Release);
 }
 
 #[cfg(test)]
@@ -609,7 +910,9 @@ pub(crate) struct TransportPlaybackDebugState {
 pub(crate) fn transport_playback_debug_state(
     slot_id: UniqueId,
 ) -> Option<TransportPlaybackDebugState> {
-    let engine = continuous_render_engine().lock().unwrap();
+    let mut engine = continuous_render_engine().lock().unwrap();
+    engine.apply_pending_commands(&SlotRuntimeRenderBackend);
+    PENDING_TRANSPORT_WORK.store(engine.has_pending_transport_work(), Ordering::Release);
     let slot_state = engine.slot_states.get(&slot_id)?;
 
     Some(TransportPlaybackDebugState {
@@ -625,6 +928,9 @@ pub(crate) fn transport_playback_debug_state(
 
 #[cfg(test)]
 pub(crate) fn reset_continuous_render_engine_for_tests() {
+    while audio_engine_commands().pop().is_some() {}
+    *audio_engine_control_state().lock().unwrap() = AudioEngineControlState::default();
+    PENDING_TRANSPORT_WORK.store(false, Ordering::Release);
     let mut engine = continuous_render_engine().lock().unwrap();
     let slot_ids = engine.slot_states.keys().copied().collect::<Vec<_>>();
     *engine = ContinuousRenderEngineState::default();
@@ -702,6 +1008,7 @@ mod tests {
         let calls = backend.render_calls.borrow();
         assert!(!calls.is_empty());
         assert_eq!(calls[0].events[0].kind, LiveRenderEventKind::NoteOn);
+        assert!(calls[0].events[0].is_live);
         assert_eq!(calls[0].events[0].note_id, 0);
         assert!(calls.iter().any(|call| {
             call.events
@@ -1049,6 +1356,7 @@ mod tests {
         assert_eq!(calls.len(), 3);
         assert_eq!(calls[0].events.len(), 1);
         assert_eq!(calls[0].events[0].kind, LiveRenderEventKind::NoteOn);
+        assert!(!calls[0].events[0].is_live);
         assert_eq!(calls[0].events[0].sample_offset, 2);
         assert_eq!(calls[0].events[0].pitch, 67);
         assert_eq!(calls[0].events[0].velocity, 101);

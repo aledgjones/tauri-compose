@@ -1,17 +1,20 @@
 use crate::playback::engine;
 use crate::playback::mixer::{self, MixerHandle};
+use crate::playback::plugin_host::prepare_slot_runtime_sessions;
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, TransportContext, TransportSharedState,
 };
 use crate::AudioContextState;
 use crate::{AppContext, AppContextState};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Device, Host, Stream};
+use cpal::{
+    Device, ErrorKind, FromSample, Host, SampleFormat, SizedSample, Stream, SupportedStreamConfig,
+};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DeviceInfo {
@@ -33,6 +36,16 @@ pub struct AudioState {
     pub devices: Vec<DeviceInfo>,
     pub active_device_id: String,
     pub current_sample_rate: u32,
+    pub stream_error_count: u64,
+    pub xrun_count: u64,
+    pub last_stream_error_kind: u32,
+    pub render_error_count: u64,
+    pub last_render_error_slot_id: Option<crate::utils::UniqueId>,
+    pub last_render_error: Option<String>,
+    pub dropped_engine_command_count: u64,
+    pub master_overload_count: u64,
+    pub master_peak: f32,
+    pub current_master_peak: f32,
 }
 
 pub struct AudioContext {
@@ -45,39 +58,72 @@ pub struct AudioContext {
 }
 
 const SUPPORTED_SAMPLE_RATES: [u32; 4] = [44100, 48000, 88200, 96000];
+const MAX_OUTPUT_CALLBACK_SAMPLES: usize = 16_384 * 8;
+static AUDIO_STREAM_ERROR_COUNT: AtomicU64 = AtomicU64::new(0);
+static AUDIO_XRUN_COUNT: AtomicU64 = AtomicU64::new(0);
+static LAST_AUDIO_STREAM_ERROR_KIND: AtomicU32 = AtomicU32::new(0);
+static AUDIO_RECOVERY_REQUEST: AtomicU32 = AtomicU32::new(0);
+
+fn audio_error_kind_code(kind: ErrorKind) -> u32 {
+    match kind {
+        ErrorKind::DeviceBusy => 1,
+        ErrorKind::DeviceChanged => 2,
+        ErrorKind::DeviceNotAvailable => 3,
+        ErrorKind::HostUnavailable => 4,
+        ErrorKind::InvalidInput => 5,
+        ErrorKind::PermissionDenied => 6,
+        ErrorKind::RealtimeDenied => 7,
+        ErrorKind::ResourceExhausted => 8,
+        ErrorKind::StreamInvalidated => 9,
+        ErrorKind::UnsupportedConfig => 10,
+        ErrorKind::UnsupportedOperation => 11,
+        ErrorKind::Xrun => 12,
+        ErrorKind::BackendError => 13,
+        ErrorKind::Other => 14,
+        _ => 15,
+    }
+}
 
 impl AudioContext {
-    pub fn new() -> AudioContextState {
+    pub fn new(app: &AppHandle) -> Result<AudioContextState, String> {
         let host = cpal::default_host();
 
-        let devices = Self::enumerate_output_devices(&host);
+        let devices = Self::enumerate_output_devices(&host)?;
 
-        let active_device = AudioContext::default_device();
+        let active_device = AudioContext::default_device()?;
 
-        // Create the persistent mixer + stream
         let (mixer_handle, stream) =
-            Self::build_stream(&active_device.device, active_device.sample_rate);
+            Self::build_stream(app, &active_device.device, active_device.sample_rate)?;
+        stream
+            .play()
+            .map_err(|error| format!("Failed to start the default audio stream: {error}"))?;
 
-        Mutex::new(AudioContext {
+        Ok(Mutex::new(AudioContext {
             host,
             devices,
             active_device,
             mixer_handle,
             _stream: stream,
-        })
+        }))
     }
-    fn enumerate_output_devices(host: &Host) -> Vec<DeviceInfo> {
-        host.output_devices()
-            .expect("Failed to get output devices")
+    fn enumerate_output_devices(host: &Host) -> Result<Vec<DeviceInfo>, String> {
+        let devices = host
+            .output_devices()
+            .map_err(|error| format!("Failed to enumerate output devices: {error}"))?
             .filter_map(|device| {
                 if let Ok(id) = device.id() {
-                    let default_config = device
-                        .default_output_config()
-                        .expect("Failed to get default output config");
+                    let default_config = device.default_output_config().ok()?;
 
                     let mut sample_rates = FxHashSet::default();
                     if let Ok(configs) = device.supported_output_configs() {
                         for config in configs {
+                            if !matches!(
+                                config.sample_format(),
+                                SampleFormat::F32 | SampleFormat::I16 | SampleFormat::U16
+                            ) || !(1..=8).contains(&config.channels())
+                            {
+                                continue;
+                            }
                             let min_rate = config.min_sample_rate();
                             let max_rate = config.max_sample_rate();
 
@@ -107,66 +153,159 @@ impl AudioContext {
 
                 None
             })
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+        Ok(devices)
     }
 
-    /// Build (or rebuild) the persistent output stream with a mixer.
-    fn build_stream(device: &Device, sample_rate: u32) -> (MixerHandle, Stream) {
+    fn supported_output_config(
+        device: &Device,
+        sample_rate: u32,
+    ) -> Result<SupportedStreamConfig, String> {
+        let default_channels = device
+            .default_output_config()
+            .map_err(|error| format!("Failed to read the default output configuration: {error}"))?
+            .channels();
+        let mut candidates = device
+            .supported_output_configs()
+            .map_err(|error| format!("Failed to read supported output configurations: {error}"))?
+            .filter(|config| {
+                matches!(
+                    config.sample_format(),
+                    SampleFormat::F32 | SampleFormat::I16 | SampleFormat::U16
+                ) && (1..=8).contains(&config.channels())
+                    && config.min_sample_rate() <= sample_rate
+                    && sample_rate <= config.max_sample_rate()
+            })
+            .collect::<Vec<_>>();
+        candidates.sort_by_key(|config| {
+            (
+                config.channels() != 2,
+                config.channels() != default_channels,
+                config.sample_format() != SampleFormat::F32,
+                config.channels(),
+            )
+        });
+        candidates
+            .into_iter()
+            .next()
+            .map(|config| config.with_sample_rate(sample_rate))
+            .ok_or_else(|| {
+                format!("The selected device has no f32 output configuration at {sample_rate} Hz.")
+            })
+    }
+
+    /// Build a paused output stream. The caller starts it after dependent processors are ready.
+    fn build_stream(
+        _app: &AppHandle,
+        device: &Device,
+        sample_rate: u32,
+    ) -> Result<(MixerHandle, Stream), String> {
         let (handle, reader) = mixer::create_mixer();
+        let supported_config = Self::supported_output_config(device, sample_rate)?;
+        let sample_format = supported_config.sample_format();
+        let stream_config = supported_config.config();
+        let channels = stream_config.channels as usize;
+        let stream = match sample_format {
+            SampleFormat::F32 => Self::build_typed_stream::<f32>(
+                device,
+                stream_config,
+                sample_rate,
+                channels,
+                reader,
+            ),
+            SampleFormat::I16 => Self::build_typed_stream::<i16>(
+                device,
+                stream_config,
+                sample_rate,
+                channels,
+                reader,
+            ),
+            SampleFormat::U16 => Self::build_typed_stream::<u16>(
+                device,
+                stream_config,
+                sample_rate,
+                channels,
+                reader,
+            ),
+            other => Err(format!("Unsupported output sample format: {other}")),
+        }?;
 
-        // Use stereo output — most hardware is stereo
-        let channels: u16 = 2;
+        Ok((handle, stream))
+    }
 
-        let stream_config = cpal::StreamConfig {
-            channels,
-            sample_rate,
-            buffer_size: cpal::BufferSize::Default,
-        };
-
-        let ch = channels as usize;
-        let stream = device
+    fn build_typed_stream<T>(
+        device: &Device,
+        stream_config: cpal::StreamConfig,
+        sample_rate: u32,
+        channels: usize,
+        mut reader: mixer::MixerReader,
+    ) -> Result<Stream, String>
+    where
+        T: SizedSample + FromSample<f32>,
+    {
+        let mut render_scratch = vec![0.0_f32; MAX_OUTPUT_CALLBACK_SAMPLES];
+        device
             .build_output_stream(
                 stream_config,
-                move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                    data.fill(0.0);
-                    engine::process_audio_block(data, ch, sample_rate);
-                    reader.mix_into_buffer(data, ch);
-                    mixer::MixerReader::clamp_buffer(data);
+                move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
+                    if data.len() > render_scratch.len() {
+                        data.fill(T::EQUILIBRIUM);
+                        return;
+                    }
+                    let output = &mut render_scratch[..data.len()];
+                    output.fill(0.0);
+                    engine::process_audio_block(output, channels, sample_rate);
+                    reader.mix_into_buffer(output, channels);
+                    mixer::MixerReader::limit_buffer(output);
+                    for (destination, source) in data.iter_mut().zip(output.iter()) {
+                        *destination = T::from_sample(*source);
+                    }
                 },
-                |err| eprintln!("Audio stream error: {}", err),
+                move |error| {
+                    AUDIO_STREAM_ERROR_COUNT.fetch_add(1, Ordering::Relaxed);
+                    AUDIO_XRUN_COUNT.fetch_add(
+                        u64::from(error.kind() == ErrorKind::Xrun),
+                        Ordering::Relaxed,
+                    );
+                    LAST_AUDIO_STREAM_ERROR_KIND
+                        .store(audio_error_kind_code(error.kind()), Ordering::Relaxed);
+                    match error.kind() {
+                        ErrorKind::DeviceNotAvailable | ErrorKind::HostUnavailable => {
+                            AUDIO_RECOVERY_REQUEST.store(2, Ordering::Release);
+                        }
+                        ErrorKind::StreamInvalidated => {
+                            AUDIO_RECOVERY_REQUEST.store(1, Ordering::Release);
+                        }
+                        _ => {}
+                    }
+                },
                 None,
             )
-            .expect("Failed to build persistent output stream");
-
-        stream
-            .play()
-            .expect("Failed to start persistent output stream");
-
-        (handle, stream)
+            .map_err(|error| format!("Failed to build the output stream: {error}"))
     }
 
-    fn default_device() -> ActiveDevice {
+    fn default_device() -> Result<ActiveDevice, String> {
         let host = cpal::default_host();
 
         let device = host
             .default_output_device()
-            .expect("Failed to get default output device");
+            .ok_or_else(|| String::from("No default output device is available."))?;
 
         let id = device
             .id()
-            .expect("Failed to get default output device ID")
+            .map_err(|error| format!("Failed to read the default output device ID: {error}"))?
             .to_string();
 
         let sample_rate = device
             .default_output_config()
-            .expect("Failed to get default output config")
+            .map_err(|error| format!("Failed to read the default output configuration: {error}"))?
             .sample_rate();
 
-        ActiveDevice {
+        Ok(ActiveDevice {
             device,
             id,
             sample_rate,
-        }
+        })
     }
 
     pub fn get_sample_rate(&self) -> u32 {
@@ -180,23 +319,79 @@ impl AudioContext {
     pub fn refresh_devices(&mut self) -> bool {
         let old_device_id = self.active_device.id.clone();
 
-        self.devices = Self::enumerate_output_devices(&self.host);
+        let Ok(devices) = Self::enumerate_output_devices(&self.host) else {
+            return false;
+        };
+        self.devices = devices;
 
         // Check if the current device is still available
         self.devices.iter().any(|d| d.id == old_device_id)
     }
 
-    pub fn emit(&self, app: &tauri::AppHandle) {
-        let audio_state = AudioState {
+    pub(crate) fn snapshot(&self) -> AudioState {
+        let last_render_error = engine::last_render_error();
+        AudioState {
             devices: self.devices.clone(),
             active_device_id: self.active_device.id.clone(),
             current_sample_rate: self.active_device.sample_rate,
-        };
+            stream_error_count: AUDIO_STREAM_ERROR_COUNT.load(Ordering::Relaxed),
+            xrun_count: AUDIO_XRUN_COUNT.load(Ordering::Relaxed),
+            last_stream_error_kind: LAST_AUDIO_STREAM_ERROR_KIND.load(Ordering::Relaxed),
+            render_error_count: engine::render_error_count(),
+            last_render_error_slot_id: last_render_error.as_ref().map(|(slot_id, _)| *slot_id),
+            last_render_error: last_render_error.map(|(_, error)| error),
+            dropped_engine_command_count: engine::dropped_engine_command_count(),
+            master_overload_count: mixer::master_overload_count(),
+            master_peak: mixer::master_peak(),
+            current_master_peak: mixer::current_master_peak(),
+        }
+    }
+
+    pub fn emit(&self, app: &tauri::AppHandle) {
+        let audio_state = self.snapshot();
 
         if let Err(e) = app.emit("soloc://state/audio", &audio_state) {
             eprintln!("Failed to emit audio state: {:?}", e);
         }
     }
+}
+
+pub(crate) fn start_audio_recovery_monitor(app: AppHandle) {
+    static STARTED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+    if STARTED.set(()).is_err() {
+        return;
+    }
+
+    let _ = std::thread::Builder::new()
+        .name(String::from("audio-recovery"))
+        .spawn(move || loop {
+            let request = AUDIO_RECOVERY_REQUEST.swap(0, Ordering::AcqRel);
+            if request == 0 {
+                std::thread::park_timeout(std::time::Duration::from_millis(100));
+                continue;
+            }
+
+            let audio_state = app.state::<AudioContextState>();
+            let transport_state = app.state::<Mutex<TransportContext>>();
+            let app_state = app.state::<AppContextState>();
+            let recovery_result = if request == 2 {
+                audio_devices_refresh(app.clone(), audio_state, transport_state, app_state)
+            } else {
+                let sample_rate = audio_state.lock().unwrap().get_sample_rate();
+                audio_device_sample_rate_set(
+                    app.clone(),
+                    audio_state,
+                    transport_state,
+                    app_state,
+                    sample_rate,
+                )
+            };
+
+            if recovery_result.is_err() {
+                AUDIO_STREAM_ERROR_COUNT.fetch_add(1, Ordering::Relaxed);
+                app.state::<AudioContextState>().lock().unwrap().emit(&app);
+            }
+        });
 }
 
 fn resync_transport_after_audio_rebuild(
@@ -262,6 +457,41 @@ fn reset_transport_for_audio_rebuild(
             })
         },
     )
+}
+
+fn start_replacement_stream(
+    app: &AppHandle,
+    audio_state: &AudioContextState,
+    stream: &Stream,
+    previous_sample_rate: u32,
+) -> Result<(), String> {
+    {
+        let context = audio_state.lock().unwrap();
+        if let Err(error) = context._stream.pause() {
+            let _ = prepare_slot_runtime_sessions(app, previous_sample_rate);
+            return Err(format!("Failed to pause the current audio stream: {error}"));
+        }
+    }
+    if let Err(error) = stream.play() {
+        let _ = audio_state.lock().unwrap()._stream.play();
+        let _ = prepare_slot_runtime_sessions(app, previous_sample_rate);
+        return Err(format!(
+            "Failed to start the replacement audio stream: {error}"
+        ));
+    }
+    Ok(())
+}
+
+fn prepare_replacement_sessions(
+    app: &AppHandle,
+    sample_rate: u32,
+    previous_sample_rate: u32,
+) -> Result<(), String> {
+    if let Err(error) = prepare_slot_runtime_sessions(app, sample_rate) {
+        let _ = prepare_slot_runtime_sessions(app, previous_sample_rate);
+        return Err(error);
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -456,6 +686,7 @@ pub fn audio_device_set(
     app_state: State<'_, AppContextState>,
     device_id: String,
 ) -> Result<(), String> {
+    let previous_sample_rate = state.lock().unwrap().active_device.sample_rate;
     let device_option = {
         let ctx = state.lock().unwrap();
         ctx.host
@@ -476,6 +707,7 @@ pub fn audio_device_set(
             .default_output_config()
             .map_err(|e| e.to_string())?
             .sample_rate();
+        let (mixer_handle, stream) = AudioContext::build_stream(&app, &device, sample_rate)?;
 
         reset_transport_for_audio_rebuild(
             &app,
@@ -483,8 +715,8 @@ pub fn audio_device_set(
             state.inner(),
             app_state.inner(),
         )?;
-
-        let (mixer_handle, stream) = AudioContext::build_stream(&device, sample_rate);
+        prepare_replacement_sessions(&app, sample_rate, previous_sample_rate)?;
+        start_replacement_stream(&app, state.inner(), &stream, previous_sample_rate)?;
 
         let mut ctx = state.lock().unwrap();
         ctx.active_device = ActiveDevice {
@@ -511,10 +743,14 @@ pub fn audio_device_sample_rate_set(
     app_state: State<'_, AppContextState>,
     sample_rate: u32,
 ) -> Result<(), String> {
-    let device = {
+    let (device, previous_sample_rate) = {
         let ctx = state.lock().unwrap();
-        ctx.active_device.device.clone()
+        (
+            ctx.active_device.device.clone(),
+            ctx.active_device.sample_rate,
+        )
     };
+    let (mixer_handle, stream) = AudioContext::build_stream(&app, &device, sample_rate)?;
 
     reset_transport_for_audio_rebuild(
         &app,
@@ -522,8 +758,8 @@ pub fn audio_device_sample_rate_set(
         state.inner(),
         app_state.inner(),
     )?;
-
-    let (mixer_handle, stream) = AudioContext::build_stream(&device, sample_rate);
+    prepare_replacement_sessions(&app, sample_rate, previous_sample_rate)?;
+    start_replacement_stream(&app, state.inner(), &stream, previous_sample_rate)?;
 
     let mut ctx = state.lock().unwrap();
 
@@ -550,6 +786,10 @@ pub fn audio_devices_refresh(
 
     // If the current device is no longer available, switch to default
     if !device_still_available {
+        let previous_sample_rate = state.lock().unwrap().active_device.sample_rate;
+        let default_device = AudioContext::default_device()?;
+        let (mixer_handle, stream) =
+            AudioContext::build_stream(&app, &default_device.device, default_device.sample_rate)?;
         reset_transport_for_audio_rebuild(
             &app,
             transport_state.inner(),
@@ -557,9 +797,8 @@ pub fn audio_devices_refresh(
             app_state.inner(),
         )?;
 
-        let default_device = AudioContext::default_device();
-        let (mixer_handle, stream) =
-            AudioContext::build_stream(&default_device.device, default_device.sample_rate);
+        prepare_replacement_sessions(&app, default_device.sample_rate, previous_sample_rate)?;
+        start_replacement_stream(&app, state.inner(), &stream, previous_sample_rate)?;
 
         let mut ctx = state.lock().unwrap();
 

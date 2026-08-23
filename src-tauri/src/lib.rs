@@ -11,7 +11,8 @@ mod ui;
 mod utils;
 
 use crate::playback::audio::{
-    audio_device_sample_rate_set, audio_device_set, audio_devices_refresh, AudioContext,
+    audio_device_sample_rate_set, audio_device_set, audio_devices_refresh,
+    start_audio_recovery_monitor, AudioContext,
 };
 use crate::playback::audition::playback_audition_tone;
 use crate::playback::engine::{sync_live_slot_targets, sync_slot_mix_states};
@@ -1083,13 +1084,15 @@ pub fn run() {
 
             app.manage(AppContext::new(app_handle));
             app.manage(RendererContext::new());
-            app.manage(AudioContext::new());
+            let audio_context = AudioContext::new(app_handle).map_err(std::io::Error::other)?;
+            app.manage(audio_context);
             app.manage(ExpressionMapLibraryContext::new(app_handle));
             app.manage(PluginInventoryContext::new(app_handle));
 
             let (transport_ctx, transport_shared) = TransportContext::new();
             app.manage(transport_ctx);
             app.manage(transport_shared);
+            start_audio_recovery_monitor(app_handle.clone());
 
             automation::start_server(app.handle().clone());
 

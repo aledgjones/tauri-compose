@@ -6,7 +6,9 @@ use tauri::{AppHandle, Manager};
 
 use crate::files::load_project_from_file;
 use crate::playback::plugin_host::plugin_host_open;
-use crate::playback::transport::TransportSharedState;
+use crate::playback::transport::{
+    transport_get_state, transport_pause, transport_play, TransportContext, TransportSharedState,
+};
 use crate::score::components::articulation::{Articulation, Articulations};
 use crate::score::components::duration::NoteDuration;
 use crate::score::components::pitch::Accidental;
@@ -147,6 +149,26 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
         action(
             "app.getActiveScore",
             "Inspect the active score path and currently selected UI ids.",
+            vec![],
+        ),
+        action(
+            "app.getAudioState",
+            "Inspect current audio device and realtime render telemetry.",
+            vec![],
+        ),
+        action(
+            "transport.getState",
+            "Inspect current main transport playback state.",
+            vec![],
+        ),
+        action(
+            "transport.play",
+            "Start main score transport playback through the configured audio routes.",
+            vec![],
+        ),
+        action(
+            "transport.pause",
+            "Pause main score transport playback and flush active audio.",
             vec![],
         ),
         action(
@@ -687,6 +709,35 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             Ok(Value::Null)
         }
         "app.getActiveScore" => Ok(derive_active_score(app)?),
+        "app.getAudioState" => Ok(serde_json::to_value(
+            app.state::<AudioContextState>().lock().unwrap().snapshot(),
+        )
+        .map_err(|error| error.to_string())?),
+        "transport.getState" => Ok(serde_json::to_value(transport_get_state(
+            app.state::<TransportSharedState>(),
+        ))
+        .map_err(|error| error.to_string())?),
+        "transport.play" => {
+            transport_play(
+                app.clone(),
+                app.state::<std::sync::Mutex<TransportContext>>(),
+                app.state::<AppContextState>(),
+                app.state::<AudioContextState>(),
+                app.state::<RendererContextState>(),
+                app.state::<crate::ManagedExpressionMapLibraryContextState>(),
+            )?;
+            Ok(Value::Null)
+        }
+        "transport.pause" => {
+            transport_pause(
+                app.clone(),
+                app.state::<std::sync::Mutex<TransportContext>>(),
+                app.state::<AppContextState>(),
+                app.state::<AudioContextState>(),
+                app.state::<RendererContextState>(),
+            )?;
+            Ok(Value::Null)
+        }
         "file.loadFromPath" => {
             load_project_from_file(
                 app.clone(),

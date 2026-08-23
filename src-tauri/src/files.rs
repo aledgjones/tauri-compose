@@ -2397,6 +2397,7 @@ mod tests {
             .unwrap()
             .plugin_state = Some(PlaybackSlotPluginState {
             vst3_component_state_base64: String::from("AQID"),
+            vst3_controller_state_base64: None,
         });
         score.assign_instrument_route_to_slot(10, 300).unwrap();
         let project_file = ProjectFile {
@@ -2491,6 +2492,7 @@ mod tests {
             .unwrap()
             .plugin_state = Some(PlaybackSlotPluginState {
             vst3_component_state_base64: String::from("AQID"),
+            vst3_controller_state_base64: None,
         });
         score.assign_instrument_route_to_slot(10, 300).unwrap();
 
@@ -2535,6 +2537,7 @@ mod tests {
                 .and_then(|target| target.plugin_state.as_ref()),
             Some(&PlaybackSlotPluginState {
                 vst3_component_state_base64: String::from("AQID"),
+                vst3_controller_state_base64: None,
             })
         );
     }
@@ -2584,6 +2587,7 @@ mod tests {
             .unwrap()
             .plugin_state = Some(PlaybackSlotPluginState {
             vst3_component_state_base64: String::from("AQID"),
+            vst3_controller_state_base64: None,
         });
         score.assign_instrument_route_to_slot(10, 300).unwrap();
 
@@ -2637,6 +2641,7 @@ mod tests {
                 .and_then(|target| target.plugin_state.as_ref()),
             Some(&PlaybackSlotPluginState {
                 vst3_component_state_base64: String::from("AQID"),
+                vst3_controller_state_base64: None,
             })
         );
         assert_eq!(

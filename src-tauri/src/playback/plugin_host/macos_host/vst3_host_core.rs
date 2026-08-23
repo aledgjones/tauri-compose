@@ -63,6 +63,7 @@ pub(crate) fn teardown_steps(state: Vst3HostCoreTeardownState) -> Vec<Vst3HostCo
 struct SteinbergPlugProviderSetup {
     host_application: PluginHostApplicationHandle,
     component_handler: ComPtr<IComponentHandler>,
+    parameter_edits: Consumer<HostParameterEdit>,
     component: ComPtr<IComponent>,
     controller: ComPtr<IEditController>,
     controller_shared_with_component: bool,
@@ -74,6 +75,7 @@ struct SteinbergPlugProviderSetup {
 
 fn initialize_steinberg_plug_provider(
     plugin_path: &Path,
+    component_cid: Option<TUID>,
     host_application: PluginHostApplicationHandle,
     factory: &ComPtr<IPluginFactory>,
     _lifecycle_profile: Vst3HostCoreLifecycleProfile,
@@ -84,29 +86,21 @@ fn initialize_steinberg_plug_provider(
         "About to configure the preallocated VST3 host application and factory host context.",
     );
     let host_context = host_application.clone_interface().upcast::<FUnknown>();
-    let component_handler = create_component_handler().map_err(|error| {
-        record_phase_failure(
-            telemetry,
-            PluginEditorHostAttemptError::host_contract_failure(
-                PluginEditorHostValidationPhase::HostContext,
-                error,
-            ),
-        )
-    })?;
-    let factory_host_context_result = configure_factory_host_context(factory, &host_context);
-    let factory_host_context_message = match factory_host_context_result {
-        Some(result) => format!(
-            "Configured factory host context host_application_ptr={} host_context_ptr={} set_host_context_tresult={}",
-            super::interface_pointer_label(host_application.as_ptr()),
-            super::interface_pointer_label(host_context.as_ptr()),
-            result,
-        ),
-        None => format!(
-            "Configured factory host context host_application_ptr={} host_context_ptr={} set_host_context_result=factory3_unavailable",
-            super::interface_pointer_label(host_application.as_ptr()),
-            super::interface_pointer_label(host_context.as_ptr()),
-        ),
-    };
+    let (component_handler, parameter_edits) = create_component_handler_with_parameter_queue()
+        .map_err(|error| {
+            record_phase_failure(
+                telemetry,
+                PluginEditorHostAttemptError::host_contract_failure(
+                    PluginEditorHostValidationPhase::HostContext,
+                    error,
+                ),
+            )
+        })?;
+    let factory_host_context_message = format!(
+        "Using the module-cached VST3 factory and retained factory host context host_application_ptr={} component_host_context_ptr={}",
+        super::interface_pointer_label(host_application.as_ptr()),
+        super::interface_pointer_label(host_context.as_ptr()),
+    );
     telemetry.log_phase_event(
         PluginEditorHostValidationPhase::HostContext,
         "info",
@@ -121,7 +115,7 @@ fn initialize_steinberg_plug_provider(
         PluginEditorHostValidationPhase::ComponentCreate,
         "About to create the VST3 component instance.",
     );
-    let component = create_component(factory, plugin_path).map_err(|error| {
+    let component = create_component(factory, plugin_path, component_cid).map_err(|error| {
         record_phase_failure(
             telemetry,
             PluginEditorHostAttemptError::plugin_failure(
@@ -214,6 +208,7 @@ fn initialize_steinberg_plug_provider(
         return Ok(SteinbergPlugProviderSetup {
             host_application,
             component_handler,
+            parameter_edits,
             component,
             controller,
             controller_shared_with_component,
@@ -322,10 +317,34 @@ fn initialize_steinberg_plug_provider(
         },
         &set_component_handler_message,
     );
+    if set_component_handler_result != kResultOk {
+        unsafe {
+            if connection_points_connected {
+                super::disconnect_connection_proxies(
+                    &component,
+                    &controller,
+                    &component_connection_proxy,
+                    &controller_connection_proxy,
+                );
+            }
+            let _ = controller.terminate();
+            let _ = component.terminate();
+        }
+        return Err(record_phase_failure(
+            telemetry,
+            PluginEditorHostAttemptError::plugin_failure(
+                PluginEditorHostValidationPhase::ControllerSetComponentHandler,
+                format!(
+                    "VST3 controller rejected the component handler (tresult={set_component_handler_result})."
+                ),
+            ),
+        ));
+    }
 
     Ok(SteinbergPlugProviderSetup {
         host_application,
         component_handler,
+        parameter_edits,
         component,
         controller,
         controller_shared_with_component,
@@ -340,12 +359,12 @@ pub(crate) struct PluginHostCoreSession {
     pub(super) target: PluginEditorTarget,
     pub(super) plugin_path: PathBuf,
     pub(super) restorable_plugin_state: Option<PlaybackSlotPluginState>,
-    pub(super) _module: LoadedVst3Module,
     pub(super) component: ComPtr<IComponent>,
     pub(super) controller: ComPtr<IEditController>,
     pub(super) view: Option<ComPtr<IPlugView>>,
     pub(super) _host_application: PluginHostApplicationHandle,
     pub(super) _component_handler: ComPtr<IComponentHandler>,
+    pub(super) parameter_edits: Consumer<HostParameterEdit>,
     pub(super) _plug_frame: Option<ComPtr<IPlugFrame>>,
     pub(super) host_view_ptr: usize,
     pub(super) plugin_can_resize: bool,
@@ -361,9 +380,17 @@ pub(crate) struct PluginHostCoreSession {
     pub(super) render_component_active: bool,
     pub(super) render_sample_rate: Option<u32>,
     pub(super) render_max_block_size: i32,
+    pub(super) render_latency_samples: u32,
+    pub(super) render_tail_samples: u32,
     pub(super) render_buses_activated: bool,
-    pub(super) render_output_buses: Vec<OutputBusLayout>,
+    pub(super) render_input_buses: Vec<AudioBusLayout>,
+    pub(super) render_output_buses: Vec<AudioBusLayout>,
     pub(super) render_scratch: RenderScratch,
+    pub(super) process_context: ProcessContext,
+    pub(super) process_sample_position: i64,
+    pub(super) transport_playing: bool,
+    // Must drop after every COM interface whose Release implementation lives in this module.
+    pub(super) _module: Arc<LoadedVst3Module>,
 }
 
 impl PluginHostCoreSession {
@@ -392,10 +419,6 @@ impl PluginHostCoreSession {
             self.view_attached,
             self.view.is_some()
         );
-
-        if self.component_initialized && self.close_prepared {
-            let _ = unsafe { self.component.setActive(1) };
-        }
 
         telemetry.record_starting(
             PluginEditorHostValidationPhase::ViewCreate,
@@ -471,6 +494,12 @@ impl PluginHostCoreSession {
         );
 
         let _ = unsafe { view.setFrame(plug_frame.as_ptr()) };
+        if let Some(content_scale_support) = view.cast::<IPlugViewContentScaleSupport>() {
+            let scale_factor = unsafe { ns_window.as_ref() }
+                .map(|window| window.backingScaleFactor() as f32)
+                .unwrap_or(1.0);
+            let _ = unsafe { content_scale_support.setContentScaleFactor(scale_factor) };
+        }
 
         telemetry.record_starting(
             PluginEditorHostValidationPhase::ViewAttach,
@@ -529,6 +558,7 @@ impl PluginHostCoreSession {
     }
 
     pub(super) fn shutdown(mut self) {
+        self.stop_render_processing();
         let teardown_state = self.teardown_state();
 
         for step in teardown_steps(teardown_state) {
@@ -586,11 +616,12 @@ pub(super) fn build_plugin_host_core_session_with_logger(
             error,
         )
     })?;
+    let factory_host_context = host_application.clone_interface().upcast::<FUnknown>();
     telemetry.record_starting(
         PluginEditorHostValidationPhase::ModuleLoad,
         "About to load the VST3 module binary.",
     );
-    let module = load_vst3_module(plugin_path).map_err(|error| {
+    let module = load_vst3_module(plugin_path, &factory_host_context).map_err(|error| {
         record_phase_failure(
             telemetry,
             PluginEditorHostAttemptError::host_contract_failure(
@@ -624,6 +655,7 @@ pub(super) fn build_plugin_host_core_session_with_logger(
     let SteinbergPlugProviderSetup {
         host_application,
         component_handler,
+        parameter_edits,
         component,
         controller,
         controller_shared_with_component,
@@ -633,6 +665,7 @@ pub(super) fn build_plugin_host_core_session_with_logger(
         controller_connection_proxy,
     } = initialize_steinberg_plug_provider(
         plugin_path,
+        target.component_cid,
         host_application,
         &factory,
         lifecycle_profile,
@@ -670,6 +703,15 @@ pub(super) fn build_plugin_host_core_session_with_logger(
                     )
                 },
             )?;
+            restore_controller_state(&controller, plugin_state).map_err(|error| {
+                record_phase_failure(
+                    telemetry,
+                    PluginEditorHostAttemptError::plugin_failure(
+                        PluginEditorHostValidationPhase::ComponentStateSync,
+                        error,
+                    ),
+                )
+            })?;
         }
         telemetry.record_completed(
             PluginEditorHostValidationPhase::ComponentStateSync,
@@ -686,16 +728,32 @@ pub(super) fn build_plugin_host_core_session_with_logger(
         );
     }
 
-    Ok(PluginHostCoreSession {
+    let mut render_scratch = RenderScratch::default();
+    render_scratch.initialize_event_list().map_err(|error| {
+        PluginEditorHostAttemptError::host_contract_failure(
+            PluginEditorHostValidationPhase::ComponentRuntimeSetup,
+            error,
+        )
+    })?;
+    render_scratch
+        .initialize_parameter_changes(&controller)
+        .map_err(|error| {
+            PluginEditorHostAttemptError::host_contract_failure(
+                PluginEditorHostValidationPhase::ComponentRuntimeSetup,
+                error,
+            )
+        })?;
+
+    let mut session = PluginHostCoreSession {
         target: target.clone(),
         plugin_path: plugin_path.to_path_buf(),
         restorable_plugin_state: restorable_plugin_state.cloned(),
-        _module: module,
         component,
         controller,
         view: None,
         _host_application: host_application,
         _component_handler: component_handler,
+        parameter_edits,
         _plug_frame: None,
         host_view_ptr: 0,
         plugin_can_resize: false,
@@ -711,8 +769,24 @@ pub(super) fn build_plugin_host_core_session_with_logger(
         render_component_active: false,
         render_sample_rate: None,
         render_max_block_size: 0,
+        render_latency_samples: 0,
+        render_tail_samples: 0,
         render_buses_activated: false,
+        render_input_buses: Vec::new(),
         render_output_buses: Vec::new(),
-        render_scratch: RenderScratch::default(),
-    })
+        render_scratch,
+        process_context: unsafe { zeroed() },
+        process_sample_position: 0,
+        transport_playing: false,
+        _module: module,
+    };
+    session
+        .prepare_render_processing(RUNTIME_AUDIO_SAMPLE_RATE.load(Ordering::Acquire))
+        .map_err(|error| {
+            PluginEditorHostAttemptError::plugin_failure(
+                PluginEditorHostValidationPhase::ComponentRuntimeSetup,
+                error,
+            )
+        })?;
+    Ok(session)
 }

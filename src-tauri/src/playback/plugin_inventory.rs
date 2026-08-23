@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, State};
+use vst3::Steinberg::TUID;
 
 const INVENTORY_STATE_KEY: &[u8] = b"plugin_inventory_state";
 
@@ -361,9 +362,19 @@ fn resolve_available_bundle_path_in_entries(
         return Err(String::from("Plugin inventory target id cannot be empty."));
     }
 
+    let legacy_bundle_path = requested_plugin_id
+        .strip_prefix("vst3:")
+        .filter(|value| !value.contains('#'));
     let entry = entries
         .iter()
         .find(|entry| entry.id == requested_plugin_id)
+        .or_else(|| {
+            legacy_bundle_path.and_then(|bundle_path| {
+                entries
+                    .iter()
+                    .find(|entry| entry.bundle_path == bundle_path)
+            })
+        })
         .ok_or_else(|| {
             format!(
                 "Plugin inventory does not contain the requested target: '{}'.",
@@ -399,9 +410,9 @@ fn discover_inventory_in_roots(roots: &[PathBuf]) -> PluginInventoryDiscoveryRes
         match list_vst3_candidates_in_root(root) {
             Ok(candidates) => {
                 result.entries.extend(
-                    candidates
-                        .into_iter()
-                        .map(|candidate| build_inventory_entry(candidate, source_root.clone())),
+                    candidates.into_iter().flat_map(|candidate| {
+                        build_inventory_entries(candidate, source_root.clone())
+                    }),
                 );
             }
             Err(error) => result.errors.push(PluginInventoryFailure {
@@ -428,7 +439,7 @@ fn validate_persisted_state(
     let mut entries = persisted_state
         .entries
         .into_iter()
-        .map(validate_cached_entry)
+        .flat_map(validate_cached_entries)
         .collect::<Vec<_>>();
     let cached_bundle_paths = entries
         .iter()
@@ -463,17 +474,20 @@ fn discover_uncached_inventory_in_roots(
         let source_root = root.display().to_string();
         match list_vst3_candidates_in_root(root) {
             Ok(candidates) => {
-                result
-                    .entries
-                    .extend(candidates.into_iter().filter_map(|candidate| {
-                        let bundle_path = candidate.display().to_string();
+                result.entries.extend(
+                    candidates
+                        .into_iter()
+                        .filter_map(|candidate| {
+                            let bundle_path = candidate.display().to_string();
 
-                        if cached_bundle_paths.contains(&bundle_path) {
-                            None
-                        } else {
-                            Some(build_inventory_entry(candidate, source_root.clone()))
-                        }
-                    }));
+                            if cached_bundle_paths.contains(&bundle_path) {
+                                None
+                            } else {
+                                Some(build_inventory_entries(candidate, source_root.clone()))
+                            }
+                        })
+                        .flatten(),
+                );
             }
             Err(error) => result.errors.push(PluginInventoryFailure {
                 kind: PluginInventoryFailureKind::IoError,
@@ -492,21 +506,26 @@ fn discover_uncached_inventory_in_roots(
     result
 }
 
-fn validate_cached_entry(entry: PluginInventoryEntry) -> PluginInventoryEntry {
+fn validate_cached_entries(entry: PluginInventoryEntry) -> Vec<PluginInventoryEntry> {
     let bundle_path = PathBuf::from(&entry.bundle_path);
 
     match validate_vst3_bundle(&bundle_path) {
-        Ok(()) => match vst3_bundle_binary_path(&bundle_path) {
-            Ok(binary_path) => PluginInventoryEntry {
-                availability: PluginInventoryAvailability::Available,
-                binary_path: Some(binary_path.display().to_string()),
-                validation_failure: None,
-                editor_host_validation: inventory_editor_host_validation(&bundle_path),
-                ..entry
-            },
-            Err(error) => unavailable_cached_entry(entry, error),
-        },
-        Err(error) => unavailable_cached_entry(entry, error),
+        Ok(()) => {
+            if !moduleinfo_audio_classes(&bundle_path).is_empty() {
+                return build_inventory_entries(bundle_path, entry.source_root);
+            }
+            match vst3_bundle_binary_path(&bundle_path) {
+                Ok(binary_path) => vec![PluginInventoryEntry {
+                    availability: PluginInventoryAvailability::Available,
+                    binary_path: Some(binary_path.display().to_string()),
+                    validation_failure: None,
+                    editor_host_validation: inventory_editor_host_validation(&bundle_path),
+                    ..entry
+                }],
+                Err(error) => vec![unavailable_cached_entry(entry, error)],
+            }
+        }
+        Err(error) => vec![unavailable_cached_entry(entry, error)],
     }
 }
 
@@ -523,9 +542,38 @@ fn unavailable_cached_entry(
     }
 }
 
-fn build_inventory_entry(candidate: PathBuf, source_root: String) -> PluginInventoryEntry {
+fn moduleinfo_audio_classes(candidate: &Path) -> Vec<(String, String)> {
+    let metadata_path = candidate
+        .join("Contents")
+        .join("Resources")
+        .join("moduleinfo.json");
+    let Ok(metadata) = std::fs::read_to_string(metadata_path) else {
+        return Vec::new();
+    };
+    let Ok(metadata) = json5::from_str::<serde_json::Value>(&metadata) else {
+        return Vec::new();
+    };
+
+    metadata
+        .get("Classes")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|class| {
+            class.get("Category").and_then(serde_json::Value::as_str) == Some("Audio Module Class")
+        })
+        .filter_map(|class| {
+            let cid = class.get("CID")?.as_str()?;
+            let name = class.get("Name")?.as_str()?;
+            (cid.len() == 32 && cid.bytes().all(|byte| byte.is_ascii_hexdigit()))
+                .then(|| (cid.to_ascii_uppercase(), name.to_string()))
+        })
+        .collect()
+}
+
+fn build_inventory_entries(candidate: PathBuf, source_root: String) -> Vec<PluginInventoryEntry> {
     let bundle_path = candidate.display().to_string();
-    let name = candidate
+    let fallback_name = candidate
         .file_stem()
         .and_then(|value| value.to_str())
         .unwrap_or("Unknown Plugin")
@@ -534,32 +582,58 @@ fn build_inventory_entry(candidate: PathBuf, source_root: String) -> PluginInven
     let validation_failure = match validate_vst3_bundle(&candidate) {
         Ok(()) => match vst3_bundle_binary_path(&candidate) {
             Ok(binary_path) => {
-                return PluginInventoryEntry {
-                    id: format!("vst3:{}", bundle_path),
-                    name,
-                    bundle_path,
-                    binary_path: Some(binary_path.display().to_string()),
-                    source_root,
-                    availability: PluginInventoryAvailability::Available,
-                    validation_failure: None,
-                    editor_host_validation: inventory_editor_host_validation(&candidate),
+                let classes = moduleinfo_audio_classes(&candidate);
+                let classes = if classes.is_empty() {
+                    vec![(String::new(), fallback_name)]
+                } else {
+                    classes
                 };
+                return classes
+                    .into_iter()
+                    .map(|(cid, name)| PluginInventoryEntry {
+                        id: if cid.is_empty() {
+                            format!("vst3:{bundle_path}")
+                        } else {
+                            format!("vst3:{bundle_path}#{cid}")
+                        },
+                        name,
+                        bundle_path: bundle_path.clone(),
+                        binary_path: Some(binary_path.display().to_string()),
+                        source_root: source_root.clone(),
+                        availability: PluginInventoryAvailability::Available,
+                        validation_failure: None,
+                        editor_host_validation: inventory_editor_host_validation(&candidate),
+                    })
+                    .collect();
             }
             Err(error) => PluginInventoryFailure::from(error),
         },
         Err(error) => PluginInventoryFailure::from(error),
     };
 
-    PluginInventoryEntry {
+    vec![PluginInventoryEntry {
         id: format!("vst3:{}", bundle_path),
-        name,
+        name: fallback_name,
         bundle_path,
         binary_path: None,
         source_root,
         availability: PluginInventoryAvailability::Unavailable,
         validation_failure: Some(validation_failure),
         editor_host_validation: None,
+    }]
+}
+
+pub(crate) fn component_cid_from_plugin_id(plugin_id: &str) -> Option<TUID> {
+    let cid = plugin_id.rsplit_once('#')?.1;
+    if cid.len() != 32 {
+        return None;
     }
+    let mut bytes = [0_i8; 16];
+    for (index, byte) in bytes.iter_mut().enumerate() {
+        let offset = index * 2;
+        *byte = u8::from_str_radix(&cid[offset..offset + 2], 16).ok()? as i8;
+    }
+    Some(bytes)
 }
 
 impl From<Vst3BundleError> for PluginInventoryFailure {
@@ -879,15 +953,15 @@ pub fn bounded_editor_host_unsupported_reason(plugin_path: &Path) -> Option<Stri
 mod tests {
     use super::{
         blocked_editor_host_validation, bounded_editor_host_unsupported_reason,
-        discover_first_valid_vst3_in_roots, discover_inventory_in_roots, expand_home_dir,
-        list_vst3_candidates_in_root, load_persisted_state,
-        resolve_available_bundle_path_in_entries, validate_vst3_bundle, vst3_bundle_binary_path,
-        PluginEditorHostLoadInitProbe, PluginEditorHostLoadInitProbeStatus,
-        PluginEditorHostValidation, PluginEditorHostValidationPhase,
-        PluginEditorHostValidationPhaseResult, PluginEditorHostValidationPhaseResultStatus,
-        PluginEditorHostValidationStatus, PluginInventoryAvailability, PluginInventoryContext,
-        PluginInventoryEntry, PluginInventoryFailure, PluginInventoryFailureKind,
-        Vst3BundleErrorKind,
+        build_inventory_entries, component_cid_from_plugin_id, discover_first_valid_vst3_in_roots,
+        discover_inventory_in_roots, expand_home_dir, list_vst3_candidates_in_root,
+        load_persisted_state, resolve_available_bundle_path_in_entries, validate_vst3_bundle,
+        vst3_bundle_binary_path, PluginEditorHostLoadInitProbe,
+        PluginEditorHostLoadInitProbeStatus, PluginEditorHostValidation,
+        PluginEditorHostValidationPhase, PluginEditorHostValidationPhaseResult,
+        PluginEditorHostValidationPhaseResultStatus, PluginEditorHostValidationStatus,
+        PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
+        PluginInventoryFailure, PluginInventoryFailureKind, Vst3BundleErrorKind,
     };
     use sled::Db;
     #[cfg(unix)]
@@ -917,6 +991,68 @@ mod tests {
 
     fn open_db(path: &std::path::Path) -> Db {
         sled::open(path).unwrap()
+    }
+
+    #[test]
+    fn component_cid_parses_canonical_inventory_suffix() {
+        assert_eq!(
+            component_cid_from_plugin_id("vst3:/tmp/Synth.vst3#00112233445566778899AABBCCDDEEFF"),
+            Some([
+                0x00,
+                0x11,
+                0x22,
+                0x33,
+                0x44,
+                0x55,
+                0x66,
+                0x77,
+                0x88_u8 as i8,
+                0x99_u8 as i8,
+                0xAA_u8 as i8,
+                0xBB_u8 as i8,
+                0xCC_u8 as i8,
+                0xDD_u8 as i8,
+                0xEE_u8 as i8,
+                0xFF_u8 as i8,
+            ])
+        );
+        assert_eq!(
+            component_cid_from_plugin_id("vst3:/tmp/Synth.vst3#xyz"),
+            None
+        );
+    }
+
+    #[test]
+    fn inventory_expands_moduleinfo_audio_classes_with_stable_cids() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-inventory-moduleinfo-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        let bundle = create_valid_bundle(&root, "MultiSynth");
+        let resources = bundle.join("Contents").join("Resources");
+        std::fs::create_dir_all(&resources).unwrap();
+        std::fs::write(
+            resources.join("moduleinfo.json"),
+            r#"{
+                "Classes": [
+                    { "CID": "00112233445566778899AABBCCDDEEFF", "Category": "Audio Module Class", "Name": "Synth A", },
+                    { "CID": "FFEEDDCCBBAA99887766554433221100", "Category": "Audio Module Class", "Name": "Synth B", },
+                    { "CID": "11111111111111111111111111111111", "Category": "Component Controller Class", "Name": "Controller", },
+                ],
+            }"#,
+        )
+        .unwrap();
+
+        let entries = build_inventory_entries(bundle.clone(), root.display().to_string());
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].name, "Synth A");
+        assert_eq!(
+            entries[0].id,
+            format!("vst3:{}#00112233445566778899AABBCCDDEEFF", bundle.display())
+        );
+        assert_eq!(entries[1].name, "Synth B");
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

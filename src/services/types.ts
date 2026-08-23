@@ -765,6 +765,13 @@ export type AudioState = {
   devices: DeviceInfo[];
   active_device_id: string;
   current_sample_rate: number;
+  stream_error_count: number;
+  xrun_count: number;
+  last_stream_error_kind: number;
+  render_error_count: number;
+  dropped_engine_command_count: number;
+  master_overload_count: number;
+  master_peak: number;
 };
 
 export type PluginInventoryAvailability = "available" | "unavailable";

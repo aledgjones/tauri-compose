@@ -170,6 +170,13 @@ export const initialAudioState: AudioState = {
   devices: [],
   active_device_id: "",
   current_sample_rate: 44100,
+  stream_error_count: 0,
+  xrun_count: 0,
+  last_stream_error_kind: 0,
+  render_error_count: 0,
+  dropped_engine_command_count: 0,
+  master_overload_count: 0,
+  master_peak: 0,
 };
 
 export const AudioContext = createContext<AudioState | null>(null);

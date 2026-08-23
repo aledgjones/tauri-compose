@@ -64,18 +64,10 @@ pub fn playback_audition_tone(
     };
 
     for reset_note in &prepared.reset_notes {
-        queue_audition_note(
-            prepared.slot_id,
-            prepared.preparation.sample_rate.max(sample_rate),
-            *reset_note,
-        );
+        queue_audition_note(prepared.slot_id, sample_rate, *reset_note);
     }
 
-    queue_audition_note(
-        prepared.slot_id,
-        prepared.preparation.sample_rate.max(sample_rate),
-        prepared.note,
-    );
+    queue_audition_note(prepared.slot_id, sample_rate, prepared.note);
     if let Some(target) = prepared
         .preparation
         .supported_target_for_instrument(instrument_id)

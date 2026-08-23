@@ -429,6 +429,7 @@ mod tests {
             plugin_id: String::from("plugin-a"),
             plugin_state: Some(PlaybackSlotPluginState {
                 vst3_component_state_base64: String::from("AQID"),
+                vst3_controller_state_base64: None,
             }),
         });
 
@@ -442,6 +443,7 @@ mod tests {
                 .and_then(|target| target.plugin_state.as_ref()),
             Some(&PlaybackSlotPluginState {
                 vst3_component_state_base64: String::from("AQID"),
+                vst3_controller_state_base64: None,
             })
         );
     }
